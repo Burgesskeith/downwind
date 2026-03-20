@@ -15,29 +15,84 @@ function angleDiff(a: number, b: number): number {
   return diff;
 }
 
+/**
+ * Probe 8 cardinal/intercardinal directions around a point to find which ones
+ * are ocean (marine API returns data) vs land. The shoreline runs roughly
+ * perpendicular to the primary ocean-facing direction.
+ */
+async function detectShorelineDirection(lat: number, lon: number): Promise<number | undefined> {
+  const offset = 0.12; // ~13km
+  const probes = [
+    { deg: 0,   dlat:  offset, dlon:  0 },
+    { deg: 45,  dlat:  offset, dlon:  offset },
+    { deg: 90,  dlat:  0,      dlon:  offset },
+    { deg: 135, dlat: -offset, dlon:  offset },
+    { deg: 180, dlat: -offset, dlon:  0 },
+    { deg: 225, dlat: -offset, dlon: -offset },
+    { deg: 270, dlat:  0,      dlon: -offset },
+    { deg: 315, dlat:  offset, dlon: -offset },
+  ];
+
+  const results = await Promise.allSettled(
+    probes.map(async (p) => {
+      const url = new URL("https://marine-api.open-meteo.com/v1/marine");
+      url.searchParams.set("latitude", String(lat + p.dlat));
+      url.searchParams.set("longitude", String(lon + p.dlon));
+      url.searchParams.set("daily", "wave_height_max");
+      url.searchParams.set("forecast_days", "1");
+      const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(5000) });
+      const data = await resp.json() as { error?: string; daily?: { wave_height_max: (number | null)[] } };
+      const isOcean = resp.ok && !data.error && Array.isArray(data.daily?.wave_height_max) && data.daily!.wave_height_max.length > 0;
+      return { deg: p.deg, isOcean };
+    })
+  );
+
+  const oceanDirs: number[] = [];
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value.isOcean) {
+      oceanDirs.push(r.value.deg);
+    }
+  }
+
+  if (oceanDirs.length === 0) return undefined;
+
+  // Average the ocean-facing vectors
+  let x = 0;
+  let y = 0;
+  for (const deg of oceanDirs) {
+    const rad = (deg * Math.PI) / 180;
+    x += Math.cos(rad);
+    y += Math.sin(rad);
+  }
+  const avgOceanDeg = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+  // Shoreline runs perpendicular to the primary ocean direction
+  return (avgOceanDeg + 90) % 360;
+}
+
 function scorePaddlingDay(params: {
   windSpeed: number;
   windDirection: number;
   swellHeight: number;
   swellPeriod: number;
   swellDirection: number;
-  paddlingDirection?: number;
+  shorelineDirection?: number;
 }): { score: number; summary: string; conditionLabel: string; alignmentAngle: number } {
-  const { windSpeed, windDirection, swellHeight, swellPeriod, swellDirection, paddlingDirection } = params;
+  const { windSpeed, windDirection, swellHeight, swellPeriod, swellDirection, shorelineDirection } = params;
 
   const alignmentAngle = angleDiff(windDirection, swellDirection);
+  const opposing = alignmentAngle > 120;
 
-  let score = 0;
-
-  // Alignment score: wind vs swell direction (max 4 pts)
+  // --- Wind/Swell alignment score (max 4 pts, penalty if opposing) ---
   let alignmentScore = 0;
   if (alignmentAngle <= 20) alignmentScore = 4;
   else if (alignmentAngle <= 45) alignmentScore = 3;
   else if (alignmentAngle <= 70) alignmentScore = 2;
   else if (alignmentAngle <= 90) alignmentScore = 1;
-  else alignmentScore = 0;
+  else if (alignmentAngle <= 120) alignmentScore = 0;
+  else alignmentScore = -2; // opposing wind fights the swell
 
-  // Swell height score: ideal 0.5-2.5m (max 2.5 pts)
+  // --- Swell height score: ideal 0.5-2.5m (max 2.5 pts) ---
   let swellScore = 0;
   if (swellHeight >= 0.5 && swellHeight <= 1.5) swellScore = 2.5;
   else if (swellHeight > 1.5 && swellHeight <= 2.5) swellScore = 2.0;
@@ -46,7 +101,7 @@ function scorePaddlingDay(params: {
   else if (swellHeight > 3.5) swellScore = 0.5;
   else swellScore = 0;
 
-  // Swell period score: ideal 10-18s (max 2 pts)
+  // --- Swell period score: ideal 10-18s (max 2 pts) ---
   let periodScore = 0;
   if (swellPeriod >= 12 && swellPeriod <= 18) periodScore = 2;
   else if (swellPeriod >= 10 && swellPeriod < 12) periodScore = 1.5;
@@ -54,7 +109,7 @@ function scorePaddlingDay(params: {
   else if (swellPeriod >= 6 && swellPeriod < 8) periodScore = 0.5;
   else periodScore = 0;
 
-  // Wind speed score: ideal 15-30 km/h (max 1.5 pts)
+  // --- Wind speed score: ideal 15-25 km/h (max 1.5 pts) ---
   let windScore = 0;
   if (windSpeed >= 15 && windSpeed <= 25) windScore = 1.5;
   else if (windSpeed > 25 && windSpeed <= 35) windScore = 1.0;
@@ -63,14 +118,12 @@ function scorePaddlingDay(params: {
   else if (windSpeed < 10) windScore = 0.5;
   else windScore = 0;
 
-  // Shoreline / paddling direction bonus (max 1.5 pts)
-  // Wind that runs parallel to the shoreline (close to the intended paddling bearing) earns bonus points.
+  // --- Shoreline alignment bonus: wind parallel to coast (max 1.5 pts) ---
   let shorelineBonus = 0;
   let shorelineAngle: number | null = null;
-  if (paddlingDirection !== undefined && paddlingDirection !== null) {
-    // We also check the reciprocal (180° opposite) since "parallel" works both ways
-    const diff1 = angleDiff(windDirection, paddlingDirection);
-    const diff2 = angleDiff(windDirection, (paddlingDirection + 180) % 360);
+  if (shorelineDirection !== undefined && shorelineDirection !== null) {
+    const diff1 = angleDiff(windDirection, shorelineDirection);
+    const diff2 = angleDiff(windDirection, (shorelineDirection + 180) % 360);
     shorelineAngle = Math.min(diff1, diff2);
     if (shorelineAngle <= 20) shorelineBonus = 1.5;
     else if (shorelineAngle <= 35) shorelineBonus = 1.2;
@@ -79,7 +132,14 @@ function scorePaddlingDay(params: {
     else shorelineBonus = 0;
   }
 
-  score = alignmentScore + swellScore + periodScore + windScore + shorelineBonus;
+  let score = alignmentScore + swellScore + periodScore + windScore + shorelineBonus;
+
+  // Hard cap for opposing conditions — it is nearly impossible to paddle
+  // into wind that opposes the swell; both forces work against the paddler.
+  if (opposing) {
+    score = Math.min(score, 3.5);
+  }
+
   score = Math.min(10, Math.max(1, Math.round(score * 10) / 10));
 
   let conditionLabel: string;
@@ -93,12 +153,14 @@ function scorePaddlingDay(params: {
 
   let summary = "";
 
-  if (alignmentAngle <= 30) {
+  if (opposing) {
+    summary += `⚠️ Wind (${windDirLabel}) and swell (${swellDirLabel}) are opposing at ${Math.round(alignmentAngle)}° — you'd be paddling into the wind against the swell, making this nearly unrunnable. `;
+  } else if (alignmentAngle <= 30) {
     summary += `Wind and swell are well-aligned (${Math.round(alignmentAngle)}° offset), creating ideal downwind running conditions. `;
   } else if (alignmentAngle <= 60) {
     summary += `Wind and swell have a moderate ${Math.round(alignmentAngle)}° offset — still rideable but expect some cross chop. `;
   } else {
-    summary += `Wind and swell are poorly aligned at ${Math.round(alignmentAngle)}°, making downwind paddling difficult with confused seas. `;
+    summary += `Wind and swell are off-axis at ${Math.round(alignmentAngle)}°, creating confused seas — harder but not impossible. `;
   }
 
   if (swellHeight < 0.3) {
@@ -108,7 +170,7 @@ function scorePaddlingDay(params: {
   } else if (swellHeight <= 2.5) {
     summary += `${swellHeight.toFixed(1)}m swell from the ${swellDirLabel} offers plenty of energy. `;
   } else {
-    summary += `Large ${swellHeight.toFixed(1)}m swell from the ${swellDirLabel} — powerful but potentially challenging for paddling. `;
+    summary += `Large ${swellHeight.toFixed(1)}m swell from the ${swellDirLabel} — powerful but demanding. `;
   }
 
   if (swellPeriod >= 12) {
@@ -116,7 +178,7 @@ function scorePaddlingDay(params: {
   } else if (swellPeriod >= 8) {
     summary += `${Math.round(swellPeriod)}s period provides moderate energy. `;
   } else {
-    summary += `Short ${Math.round(swellPeriod)}s period means choppy, wind-driven sea state. `;
+    summary += `Short ${Math.round(swellPeriod)}s period means choppy, wind-driven seas. `;
   }
 
   if (windSpeed >= 15 && windSpeed <= 30) {
@@ -127,15 +189,15 @@ function scorePaddlingDay(params: {
     summary += `Light ${Math.round(windSpeed)} km/h ${windDirLabel} wind means you'll need to work harder without much push.`;
   }
 
-  // Shoreline bonus sentence
-  if (paddlingDirection !== undefined && paddlingDirection !== null && shorelineAngle !== null) {
-    const paddlingDirLabel = degToCompass(paddlingDirection);
+  // Shoreline bonus note
+  if (shorelineDirection !== undefined && shorelineAngle !== null) {
+    const shoreDirLabel = degToCompass(shorelineDirection);
     if (shorelineBonus >= 1.2) {
-      summary += ` The ${windDirLabel} wind is nearly parallel to your ${paddlingDirLabel} shoreline run — ideal downwind conditions with a +${shorelineBonus.toFixed(1)} pt bonus.`;
+      summary += ` The ${windDirLabel} wind runs parallel to the ${shoreDirLabel} shoreline — ideal for a long downwind run (+${shorelineBonus.toFixed(1)} bonus).`;
     } else if (shorelineBonus >= 0.4) {
-      summary += ` Wind has a partial alignment with your ${paddlingDirLabel} shoreline run (+${shorelineBonus.toFixed(1)} pt bonus).`;
-    } else {
-      summary += ` Wind direction doesn't favour your ${paddlingDirLabel} shoreline run today.`;
+      summary += ` Wind has some alignment with the ${shoreDirLabel} coast (+${shorelineBonus.toFixed(1)} bonus).`;
+    } else if (shorelineDirection !== undefined) {
+      summary += ` Wind doesn't favour the ${shoreDirLabel} shoreline run today.`;
     }
   }
 
@@ -157,6 +219,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
     lat: req.query.lat ? Number(req.query.lat) : undefined,
     lon: req.query.lon ? Number(req.query.lon) : undefined,
     locationName: req.query.locationName,
+    paddlingDirection: req.query.paddlingDirection ? Number(req.query.paddlingDirection) : undefined,
   });
 
   if (!parseResult.success) {
@@ -165,9 +228,8 @@ router.get("/forecast", async (req: Request, res: Response) => {
   }
 
   const { lat, lon, locationName } = parseResult.data;
-  const paddlingDirection = req.query.paddlingDirection !== undefined
-    ? Number(req.query.paddlingDirection)
-    : undefined;
+  // Use supplied paddling direction, or auto-detect from coastline
+  let shorelineDirection: number | undefined = parseResult.data.paddlingDirection;
 
   try {
     const url = new URL("https://marine-api.open-meteo.com/v1/marine");
@@ -177,9 +239,6 @@ router.get("/forecast", async (req: Request, res: Response) => {
       "wave_height_max",
       "wave_period_max",
       "wave_direction_dominant",
-      "wind_wave_height_max",
-      "wind_wave_period_max",
-      "wind_wave_direction_dominant",
       "swell_wave_height_max",
       "swell_wave_period_max",
       "swell_wave_direction_dominant",
@@ -193,10 +252,16 @@ router.get("/forecast", async (req: Request, res: Response) => {
     windUrl.searchParams.set("timezone", "auto");
     windUrl.searchParams.set("forecast_days", "7");
 
-    const [marineResp, windResp] = await Promise.all([
+    // Run marine, wind, and shoreline detection in parallel
+    const [marineResp, windResp, detectedShoreline] = await Promise.all([
       fetch(url.toString()),
       fetch(windUrl.toString()),
+      shorelineDirection === undefined ? detectShorelineDirection(lat, lon) : Promise.resolve(undefined),
     ]);
+
+    if (shorelineDirection === undefined && detectedShoreline !== undefined) {
+      shorelineDirection = detectedShoreline;
+    }
 
     if (!marineResp.ok) {
       req.log.error({ status: marineResp.status }, "Marine API error");
@@ -243,7 +308,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
         swellHeight,
         swellPeriod,
         swellDirection,
-        paddlingDirection,
+        shorelineDirection,
       });
 
       return {

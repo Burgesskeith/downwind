@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, AlertCircle, Navigation } from "lucide-react";
+import { MapPin, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetWeatherForecast } from "@workspace/api-client-react";
 import { LocationSearch } from "@/components/LocationSearch";
@@ -8,27 +8,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingGrid";
 import type { GeocodeLocation } from "@workspace/api-client-react/src/generated/api.schemas";
 
-const COMPASS_POINTS = [
-  { label: "N",   deg: 0 },
-  { label: "NE",  deg: 45 },
-  { label: "E",   deg: 90 },
-  { label: "SE",  deg: 135 },
-  { label: "S",   deg: 180 },
-  { label: "SW",  deg: 225 },
-  { label: "W",   deg: 270 },
-  { label: "NW",  deg: 315 },
-];
-
 export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(null);
-  const [paddlingDirection, setPaddlingDirection] = useState<number | undefined>(undefined);
 
   const { data: forecast, isLoading, isError, error } = useGetWeatherForecast(
     { 
       lat: selectedLocation?.lat as number, 
       lon: selectedLocation?.lon as number,
       locationName: selectedLocation?.name,
-      paddlingDirection,
     },
     {
       query: {
@@ -82,47 +69,6 @@ export default function Home() {
               onSelect={setSelectedLocation} 
               selectedName={selectedLocation?.name}
             />
-
-            {/* Shoreline / Paddling Direction Picker */}
-            <div className="flex flex-col items-center gap-2 w-full max-w-2xl">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
-                <Navigation className="w-4 h-4 text-primary" />
-                Shoreline run direction
-                <span className="text-xs text-muted-foreground/60">(optional — earns bonus points when wind is parallel)</span>
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {COMPASS_POINTS.map((pt) => (
-                  <button
-                    key={pt.label}
-                    onClick={() =>
-                      setPaddlingDirection(paddlingDirection === pt.deg ? undefined : pt.deg)
-                    }
-                    className={[
-                      "px-4 py-2 rounded-xl text-sm font-bold border transition-all duration-200",
-                      paddlingDirection === pt.deg
-                        ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
-                        : "bg-card border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                    ].join(" ")}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Navigation
-                        className="w-3 h-3"
-                        style={{ transform: `rotate(${pt.deg}deg)` }}
-                      />
-                      {pt.label}
-                    </span>
-                  </button>
-                ))}
-                {paddlingDirection !== undefined && (
-                  <button
-                    onClick={() => setPaddlingDirection(undefined)}
-                    className="px-4 py-2 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-200"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
           </motion.div>
         </div>
       </section>
@@ -171,14 +117,8 @@ export default function Home() {
                   <h2 className="font-display text-2xl font-bold text-foreground">
                     {forecast.locationName}
                   </h2>
-                  <p className="text-muted-foreground font-medium flex items-center gap-2">
+                  <p className="text-muted-foreground font-medium">
                     {forecast.lat.toFixed(4)}°, {forecast.lon.toFixed(4)}°
-                    {paddlingDirection !== undefined && (
-                      <span className="inline-flex items-center gap-1 text-primary text-sm font-semibold bg-primary/10 px-2 py-0.5 rounded-full">
-                        <Navigation className="w-3 h-3" style={{ transform: `rotate(${paddlingDirection}deg)` }} />
-                        Shoreline: {COMPASS_POINTS.find(p => p.deg === paddlingDirection)?.label}
-                      </span>
-                    )}
                   </p>
                 </div>
               </div>
