@@ -19,4 +19,8 @@ export type GetWeatherForecastParams = {
    * Human-readable location name
    */
   locationName?: string;
+  /**
+   * The compass bearing (degrees) the paddler wants to travel, parallel to the shoreline. Wind aligned with this direction earns bonus points.
+   */
+  paddlingDirection?: number;
 };

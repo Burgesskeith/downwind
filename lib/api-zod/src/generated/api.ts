@@ -26,6 +26,12 @@ export const GetWeatherForecastQueryParams = zod.object({
     .string()
     .optional()
     .describe("Human-readable location name"),
+  paddlingDirection: zod.coerce
+    .number()
+    .optional()
+    .describe(
+      "The compass bearing (degrees) the paddler wants to travel, parallel to the shoreline. Wind aligned with this direction earns bonus points.",
+    ),
 });
 
 export const GetWeatherForecastResponse = zod.object({
