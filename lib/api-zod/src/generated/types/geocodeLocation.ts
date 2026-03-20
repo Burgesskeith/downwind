@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface GeocodeLocation {
+  name: string;
+  lat: number;
+  lon: number;
+  country?: string;
+  admin1?: string;
 }

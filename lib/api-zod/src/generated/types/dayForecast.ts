@@ -5,9 +5,6 @@
  * Marine Weather Paddle Planner API
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
-}
 
 export interface DayForecast {
   /** ISO date string (YYYY-MM-DD) */
@@ -37,48 +34,3 @@ export interface DayForecast {
   /** Quick label e.g. "Epic", "Good", "Fair", "Poor" */
   conditionLabel: string;
 }
-
-export interface WeatherForecast {
-  locationName: string;
-  lat: number;
-  lon: number;
-  days: DayForecast[];
-}
-
-export interface GeocodeLocation {
-  name: string;
-  lat: number;
-  lon: number;
-  country?: string;
-  admin1?: string;
-}
-
-export interface GeocodeResult {
-  results: GeocodeLocation[];
-}
-
-export interface ErrorResponse {
-  error: string;
-}
-
-export type GetWeatherForecastParams = {
-  /**
-   * Latitude of the beach location
-   */
-  lat: number;
-  /**
-   * Longitude of the beach location
-   */
-  lon: number;
-  /**
-   * Human-readable location name
-   */
-  locationName?: string;
-};
-
-export type GeocodeLocationParams = {
-  /**
-   * Location name to search for
-   */
-  query: string;
-};

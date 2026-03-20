@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Marine Weather Paddle Planner API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: weather
+    description: Marine weather forecast operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,76 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /weather/forecast:
+    get:
+      operationId: getWeatherForecast
+      tags: [weather]
+      summary: Get 7-day marine weather forecast
+      description: Returns a 7-day downwind paddling forecast for a given location
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+          description: Latitude of the beach location
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+          description: Longitude of the beach location
+        - name: locationName
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Human-readable location name
+      responses:
+        "200":
+          description: 7-day forecast
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeatherForecast"
+        "400":
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: External API error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /weather/geocode:
+    get:
+      operationId: geocodeLocation
+      tags: [weather]
+      summary: Geocode a location name to coordinates
+      description: Returns lat/lon for a given place name using Open-Meteo geocoding API
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Location name to search for
+      responses:
+        "200":
+          description: Geocoding results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeocodeResult"
+        "400":
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +104,110 @@ components:
           type: string
       required:
         - status
-
+    DayForecast:
+      type: object
+      properties:
+        date:
+          type: string
+          description: ISO date string (YYYY-MM-DD)
+        dayLabel:
+          type: string
+          description: Human-readable day label e.g. "Monday"
+        score:
+          type: number
+          description: Paddling score from 1 to 10
+        windSpeed:
+          type: number
+          description: Wind speed in km/h
+        windDirection:
+          type: number
+          description: Wind direction in degrees (meteorological)
+        windDirectionLabel:
+          type: string
+          description: Wind direction label e.g. "NNE"
+        swellHeight:
+          type: number
+          description: Swell wave height in meters
+        swellPeriod:
+          type: number
+          description: Swell wave period in seconds
+        swellDirection:
+          type: number
+          description: Swell wave direction in degrees
+        swellDirectionLabel:
+          type: string
+          description: Swell direction label e.g. "SSW"
+        alignmentAngle:
+          type: number
+          description: Angle between wind and swell directions (lower is better for downwind)
+        summary:
+          type: string
+          description: A short paragraph describing the conditions
+        conditionLabel:
+          type: string
+          description: Quick label e.g. "Epic", "Good", "Fair", "Poor"
+      required:
+        - date
+        - dayLabel
+        - score
+        - windSpeed
+        - windDirection
+        - windDirectionLabel
+        - swellHeight
+        - swellPeriod
+        - swellDirection
+        - swellDirectionLabel
+        - alignmentAngle
+        - summary
+        - conditionLabel
+    WeatherForecast:
+      type: object
+      properties:
+        locationName:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayForecast"
+      required:
+        - locationName
+        - lat
+        - lon
+        - days
+    GeocodeLocation:
+      type: object
+      properties:
+        name:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        country:
+          type: string
+        admin1:
+          type: string
+      required:
+        - name
+        - lat
+        - lon
+    GeocodeResult:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeocodeLocation"
+      required:
+        - results
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

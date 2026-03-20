@@ -1,0 +1,137 @@
+import { useState } from "react";
+import { MapPin, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useGetWeatherForecast } from "@workspace/api-client-react";
+import { LocationSearch } from "@/components/LocationSearch";
+import { ForecastCard } from "@/components/ForecastCard";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingGrid } from "@/components/LoadingGrid";
+import type { GeocodeLocation } from "@workspace/api-client-react/src/generated/api.schemas";
+
+export default function Home() {
+  const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(null);
+
+  const { data: forecast, isLoading, isError, error } = useGetWeatherForecast(
+    { 
+      lat: selectedLocation?.lat as number, 
+      lon: selectedLocation?.lon as number,
+      locationName: selectedLocation?.name 
+    },
+    {
+      query: {
+        enabled: !!selectedLocation,
+        staleTime: 1000 * 60 * 15, // 15 mins
+        retry: 1
+      }
+    }
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
+      {/* Decorative background blurs */}
+      <div className="absolute top-0 inset-x-0 h-screen pointer-events-none overflow-hidden -z-10">
+        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
+        <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-accent/5 blur-[100px]" />
+      </div>
+
+      {/* Hero Section */}
+      <section className="relative pt-24 pb-32 px-4 sm:px-6 lg:px-8">
+        <div className="absolute inset-0 -z-20">
+          <img 
+            src={`${import.meta.env.BASE_URL}images/hero-ocean.png`}
+            alt="Deep blue ocean waves rolling in the open sea"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/95 to-background" />
+        </div>
+
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground tracking-tight mb-6">
+              Chase the <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Perfect Glide</span>
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10 font-medium">
+              Predict the ultimate downwind paddle days. We analyze wind, swell size, and directional alignment to score the conditions for your local beach.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="w-full"
+          >
+            <LocationSearch 
+              onSelect={setSelectedLocation} 
+              selectedName={selectedLocation?.name}
+            />
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Main Content Area */}
+      <main className="flex-grow w-full z-10 pb-24">
+        <AnimatePresence mode="wait">
+          {!selectedLocation && !isLoading && (
+            <motion.div key="empty" exit={{ opacity: 0, y: -20 }}>
+              <EmptyState />
+            </motion.div>
+          )}
+
+          {isLoading && (
+            <motion.div key="loading" exit={{ opacity: 0 }}>
+              <LoadingGrid />
+            </motion.div>
+          )}
+
+          {isError && selectedLocation && (
+            <motion.div 
+              key="error" 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="max-w-2xl mx-auto mt-12 p-6 bg-destructive/10 border border-destructive/20 rounded-2xl flex flex-col items-center text-center"
+            >
+              <AlertCircle className="w-12 h-12 text-destructive mb-4" />
+              <h3 className="text-xl font-bold text-foreground mb-2">Failed to load forecast</h3>
+              <p className="text-muted-foreground">
+                {error?.error || "We couldn't retrieve the marine weather data for this location. Please try again later."}
+              </p>
+            </motion.div>
+          )}
+
+          {forecast && selectedLocation && !isLoading && !isError && (
+            <motion.div 
+              key="forecast"
+              className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-4"
+            >
+              <div className="flex items-center gap-3 mb-8 pl-2">
+                <div className="p-3 bg-primary/10 rounded-xl text-primary">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-display text-2xl font-bold text-foreground">
+                    {forecast.locationName}
+                  </h2>
+                  <p className="text-muted-foreground font-medium">
+                    {forecast.lat.toFixed(4)}°, {forecast.lon.toFixed(4)}°
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {forecast.days.map((day, idx) => (
+                  <ForecastCard key={day.date} forecast={day} index={idx} />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+}
