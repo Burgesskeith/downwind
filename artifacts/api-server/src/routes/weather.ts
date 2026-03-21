@@ -71,11 +71,11 @@ async function detectShorelineDirection(lat: number, lon: number): Promise<numbe
 }
 
 function scorePaddlingDay(params: {
-  windSpeed: number;
-  windDirection: number;
-  swellHeight: number;
-  swellPeriod: number;
-  swellDirection: number;
+  windSpeed: number;       // km/h
+  windDirection: number;   // degrees meteorological
+  swellHeight: number;     // metres
+  swellPeriod: number;     // seconds
+  swellDirection: number;  // degrees
   shorelineDirection?: number;
 }): { score: number; summary: string; conditionLabel: string; alignmentAngle: number } {
   const { windSpeed, windDirection, swellHeight, swellPeriod, swellDirection, shorelineDirection } = params;
@@ -83,121 +83,165 @@ function scorePaddlingDay(params: {
   const alignmentAngle = angleDiff(windDirection, swellDirection);
   const opposing = alignmentAngle > 120;
 
-  // --- Wind/Swell alignment score (max 4 pts, penalty if opposing) ---
-  let alignmentScore = 0;
-  if (alignmentAngle <= 20) alignmentScore = 4;
-  else if (alignmentAngle <= 45) alignmentScore = 3;
-  else if (alignmentAngle <= 70) alignmentScore = 2;
-  else if (alignmentAngle <= 90) alignmentScore = 1;
-  else if (alignmentAngle <= 120) alignmentScore = 0;
-  else alignmentScore = -2; // opposing wind fights the swell
+  // ─── Wind / Swell alignment (max 3.5 pts) ───────────────────────────────
+  // Best: same direction. Avoid cross (messy) and opposing (kills glide).
+  let alignmentScore: number;
+  if      (alignmentAngle <= 20)  alignmentScore =  3.5;  // perfectly aligned
+  else if (alignmentAngle <= 45)  alignmentScore =  2.5;  // good
+  else if (alignmentAngle <= 70)  alignmentScore =  1.5;  // acceptable cross
+  else if (alignmentAngle <= 90)  alignmentScore =  0.5;  // messy cross
+  else if (alignmentAngle <= 120) alignmentScore = -0.5;  // confused seas
+  else                            alignmentScore = -2.0;  // opposing — kills glide
 
-  // --- Swell height score: ideal 0.5-2.5m (max 2.5 pts) ---
-  let swellScore = 0;
-  if (swellHeight >= 0.5 && swellHeight <= 1.5) swellScore = 2.5;
-  else if (swellHeight > 1.5 && swellHeight <= 2.5) swellScore = 2.0;
-  else if (swellHeight > 2.5 && swellHeight <= 3.5) swellScore = 1.0;
-  else if (swellHeight > 0.2 && swellHeight < 0.5) swellScore = 1.0;
-  else if (swellHeight > 3.5) swellScore = 0.5;
-  else swellScore = 0;
+  // ─── Wind speed (max 2.5 pts) ────────────────────────────────────────────
+  // 15–25 knots (28–46 km/h) is the core sweet spot.
+  // 10–15 knots (19–28 km/h): beginner-friendly.
+  // 25–30 knots (46–56 km/h): advanced/powerful runs.
+  // >35 knots (>65 km/h): dangerous.
+  let windScore: number;
+  if      (windSpeed >= 28 && windSpeed <= 46) windScore = 2.5;  // 15–25 kn ideal
+  else if (windSpeed >  46 && windSpeed <= 56) windScore = 2.0;  // 25–30 kn advanced
+  else if (windSpeed >  19 && windSpeed <  28) windScore = 1.5;  // 10–15 kn beginner
+  else if (windSpeed >  56 && windSpeed <= 65) windScore = 1.0;  // 30–35 kn strong
+  else if (windSpeed >  10 && windSpeed <= 19) windScore = 0.5;  // 5–10 kn very light
+  else if (windSpeed >  65)                    windScore = 0.0;  // >35 kn dangerous
+  else                                         windScore = 0.0;  // <5 kn — flat, no push
 
-  // --- Swell period score: ideal 10-18s (max 2 pts) ---
-  let periodScore = 0;
-  if (swellPeriod >= 12 && swellPeriod <= 18) periodScore = 2;
-  else if (swellPeriod >= 10 && swellPeriod < 12) periodScore = 1.5;
-  else if (swellPeriod >= 8 && swellPeriod < 10) periodScore = 1;
-  else if (swellPeriod >= 6 && swellPeriod < 8) periodScore = 0.5;
-  else periodScore = 0;
+  // ─── Swell height (max 2.5 pts) ──────────────────────────────────────────
+  // Ideal: 1–2.5 m. Too small → no energy; too large → survival paddling.
+  let swellScore: number;
+  if      (swellHeight >= 1.0 && swellHeight <= 2.5) swellScore = 2.5;  // ideal
+  else if (swellHeight >  2.5 && swellHeight <= 3.5) swellScore = 1.5;  // large, demanding
+  else if (swellHeight >= 0.5 && swellHeight <  1.0) swellScore = 1.5;  // small, still fun
+  else if (swellHeight >  3.5)                       swellScore = 0.5;  // extreme
+  else if (swellHeight >= 0.2 && swellHeight <  0.5) swellScore = 0.5;  // very small
+  else                                               swellScore = 0.0;  // flat
 
-  // --- Wind speed score: ideal 15-25 km/h (max 1.5 pts) ---
-  let windScore = 0;
-  if (windSpeed >= 15 && windSpeed <= 25) windScore = 1.5;
-  else if (windSpeed > 25 && windSpeed <= 35) windScore = 1.0;
-  else if (windSpeed > 10 && windSpeed < 15) windScore = 1.0;
-  else if (windSpeed > 35 && windSpeed <= 45) windScore = 0.5;
-  else if (windSpeed < 10) windScore = 0.5;
-  else windScore = 0;
+  // ─── Swell period (max 2.0 pts) ──────────────────────────────────────────
+  // 6–10 s wind swell creates the fast "bumps" and runners for downwind.
+  // Longer ground swell is well-organised but bumps are far apart and harder
+  // to link. Very short chop (<5 s) is disorganised and punishing.
+  let periodScore: number;
+  if      (swellPeriod >= 6  && swellPeriod <= 10) periodScore = 2.0;  // ideal wind swell
+  else if (swellPeriod >  10 && swellPeriod <= 14) periodScore = 1.5;  // good ground swell
+  else if (swellPeriod >  5  && swellPeriod <  6)  periodScore = 1.0;  // short but usable
+  else if (swellPeriod >  14 && swellPeriod <= 18) periodScore = 1.0;  // long period, sparse
+  else if (swellPeriod >  18)                      periodScore = 0.5;  // very long, hard to link
+  else                                             periodScore = 0.0;  // <5 s — pure chop
 
-  // --- Shoreline alignment bonus: wind parallel to coast (max 1.5 pts) ---
+  // ─── Shoreline alignment bonus (max 0.5 pts, penalty for offshore) ───────
+  // Wind parallel to the coast = ideal downwind run.
+  // Wind blowing offshore (perpendicular away from shore) = dangerous.
   let shorelineBonus = 0;
   let shorelineAngle: number | null = null;
+  let isOffshore = false;
   if (shorelineDirection !== undefined && shorelineDirection !== null) {
+    // Angle between wind and shore-parallel axis (bidirectional)
     const diff1 = angleDiff(windDirection, shorelineDirection);
     const diff2 = angleDiff(windDirection, (shorelineDirection + 180) % 360);
     shorelineAngle = Math.min(diff1, diff2);
-    if (shorelineAngle <= 20) shorelineBonus = 1.5;
-    else if (shorelineAngle <= 35) shorelineBonus = 1.2;
-    else if (shorelineAngle <= 50) shorelineBonus = 0.8;
-    else if (shorelineAngle <= 70) shorelineBonus = 0.4;
-    else shorelineBonus = 0;
+
+    // Offshore = wind roughly perpendicular to shore (blowing away from coast)
+    const offshoreAngle = Math.min(
+      angleDiff(windDirection, (shorelineDirection + 90) % 360),
+      angleDiff(windDirection, (shorelineDirection + 270) % 360)
+    );
+    isOffshore = offshoreAngle <= 35;
+
+    if (isOffshore) {
+      shorelineBonus = -1.0; // offshore wind — safety hazard
+    } else if (shorelineAngle <= 25) {
+      shorelineBonus = 0.5;  // wind running parallel to coast — ideal
+    } else if (shorelineAngle <= 50) {
+      shorelineBonus = 0.25; // slight angle
+    } else {
+      shorelineBonus = 0;
+    }
   }
 
-  let score = alignmentScore + swellScore + periodScore + windScore + shorelineBonus;
+  // ─── Total ────────────────────────────────────────────────────────────────
+  let score = alignmentScore + windScore + swellScore + periodScore + shorelineBonus;
 
-  // Hard cap for opposing conditions — it is nearly impossible to paddle
-  // into wind that opposes the swell; both forces work against the paddler.
-  if (opposing) {
-    score = Math.min(score, 3.5);
-  }
+  // Hard cap for opposing conditions — opposing wind kills all forward glide.
+  if (opposing) score = Math.min(score, 3.5);
 
   score = Math.min(10, Math.max(1, Math.round(score * 10) / 10));
 
+  // ─── Condition label ─────────────────────────────────────────────────────
   let conditionLabel: string;
-  if (score >= 8) conditionLabel = "Epic";
+  if      (score >= 8) conditionLabel = "Epic";
   else if (score >= 6) conditionLabel = "Good";
   else if (score >= 4) conditionLabel = "Fair";
-  else conditionLabel = "Poor";
+  else                 conditionLabel = "Poor";
 
-  const windDirLabel = degToCompass(windDirection);
+  // ─── Summary text ─────────────────────────────────────────────────────────
+  const windDirLabel  = degToCompass(windDirection);
   const swellDirLabel = degToCompass(swellDirection);
-
   let summary = "";
 
+  // Alignment
   if (opposing) {
-    summary += `⚠️ Wind (${windDirLabel}) and swell (${swellDirLabel}) are opposing at ${Math.round(alignmentAngle)}° — you'd be paddling into the wind against the swell, making this nearly unrunnable. `;
-  } else if (alignmentAngle <= 30) {
-    summary += `Wind and swell are well-aligned (${Math.round(alignmentAngle)}° offset), creating ideal downwind running conditions. `;
-  } else if (alignmentAngle <= 60) {
-    summary += `Wind and swell have a moderate ${Math.round(alignmentAngle)}° offset — still rideable but expect some cross chop. `;
+    summary += `Wind (${windDirLabel}) and swell (${swellDirLabel}) are opposing at ${Math.round(alignmentAngle)}° — running into the wind against the swell makes this nearly unrunnable. `;
+  } else if (alignmentAngle <= 25) {
+    summary += `Wind and swell are well-aligned (${Math.round(alignmentAngle)}° offset) — classic downwind conditions with linked runners expected. `;
+  } else if (alignmentAngle <= 55) {
+    summary += `Wind and swell have a ${Math.round(alignmentAngle)}° offset — good runs are possible but expect some cross chop breaking up the lines. `;
+  } else if (alignmentAngle <= 90) {
+    summary += `Wind and swell are significantly cross at ${Math.round(alignmentAngle)}° — confused, messy conditions with disorganised bumps. `;
   } else {
-    summary += `Wind and swell are off-axis at ${Math.round(alignmentAngle)}°, creating confused seas — harder but not impossible. `;
+    summary += `Wind and swell are badly off-axis at ${Math.round(alignmentAngle)}° — very confused seas, difficult to find linkable runners. `;
   }
 
+  // Swell height + character (period indicates wind swell vs ground swell)
+  const isWindSwell = swellPeriod >= 5 && swellPeriod <= 12;
+  const swellType   = isWindSwell ? "wind swell" : "ground swell";
   if (swellHeight < 0.3) {
-    summary += `Swell is very small at ${swellHeight.toFixed(1)}m — not enough energy to surf. `;
-  } else if (swellHeight <= 1.5) {
-    summary += `Swell is a fun ${swellHeight.toFixed(1)}m from the ${swellDirLabel}, great for catching runs. `;
+    summary += `Virtually flat at ${swellHeight.toFixed(1)}m — no energy to work with. `;
+  } else if (swellHeight < 0.5) {
+    summary += `Very small ${swellHeight.toFixed(1)}m ${swellType} — barely enough to catch. `;
+  } else if (swellHeight < 1.0) {
+    summary += `Small ${swellHeight.toFixed(1)}m ${swellType} from the ${swellDirLabel} — beginner-friendly bumps. `;
   } else if (swellHeight <= 2.5) {
-    summary += `${swellHeight.toFixed(1)}m swell from the ${swellDirLabel} offers plenty of energy. `;
+    summary += `${swellHeight.toFixed(1)}m ${swellType} from the ${swellDirLabel} — ideal size for fast, linked runners. `;
+  } else if (swellHeight <= 3.5) {
+    summary += `Large ${swellHeight.toFixed(1)}m ${swellType} from the ${swellDirLabel} — powerful runs for advanced paddlers. `;
   } else {
-    summary += `Large ${swellHeight.toFixed(1)}m swell from the ${swellDirLabel} — powerful but demanding. `;
+    summary += `Extreme ${swellHeight.toFixed(1)}m swell from the ${swellDirLabel} — survival conditions, expert only. `;
   }
 
-  if (swellPeriod >= 12) {
-    summary += `Long ${Math.round(swellPeriod)}s period gives well-organised, powerful waves. `;
-  } else if (swellPeriod >= 8) {
-    summary += `${Math.round(swellPeriod)}s period provides moderate energy. `;
+  // Period character
+  if (swellPeriod < 5) {
+    summary += `${Math.round(swellPeriod)}s period is pure choppy chop — very hard to link any runs. `;
+  } else if (swellPeriod <= 10) {
+    summary += `${Math.round(swellPeriod)}s period is the sweet spot for downwind — fast, frequent bumps with good linking potential. `;
+  } else if (swellPeriod <= 14) {
+    summary += `${Math.round(swellPeriod)}s period gives well-organised, powerful waves — great energy but bumps are more spread out. `;
   } else {
-    summary += `Short ${Math.round(swellPeriod)}s period means choppy, wind-driven seas. `;
+    summary += `Long ${Math.round(swellPeriod)}s period means sparse, powerful waves — expect gaps between runners. `;
   }
 
-  if (windSpeed >= 15 && windSpeed <= 30) {
-    summary += `Wind at ${Math.round(windSpeed)} km/h from the ${windDirLabel} is in the sweet spot for downwind paddling.`;
-  } else if (windSpeed > 30) {
-    summary += `${Math.round(windSpeed)} km/h ${windDirLabel} wind is strong — experienced paddlers only.`;
+  // Wind speed + skill level guidance
+  if (windSpeed < 10) {
+    summary += `${Math.round(windSpeed)} km/h is barely a breeze — minimal push and no whitecaps.`;
+  } else if (windSpeed < 19) {
+    summary += `Light ${Math.round(windSpeed)} km/h (${Math.round(windSpeed / 1.852)} kn) ${windDirLabel} wind — light energy, suitable for technique work.`;
+  } else if (windSpeed < 28) {
+    summary += `${Math.round(windSpeed)} km/h (${Math.round(windSpeed / 1.852)} kn) ${windDirLabel} wind — beginner-friendly with fun, manageable bumps.`;
+  } else if (windSpeed <= 46) {
+    summary += `${Math.round(windSpeed)} km/h (${Math.round(windSpeed / 1.852)} kn) ${windDirLabel} wind — ideal strength with plenty of whitecaps and energy to harness.`;
+  } else if (windSpeed <= 56) {
+    summary += `${Math.round(windSpeed)} km/h (${Math.round(windSpeed / 1.852)} kn) ${windDirLabel} wind — fast, powerful runs for experienced paddlers.`;
   } else {
-    summary += `Light ${Math.round(windSpeed)} km/h ${windDirLabel} wind means you'll need to work harder without much push.`;
+    summary += `${Math.round(windSpeed)} km/h (${Math.round(windSpeed / 1.852)} kn) ${windDirLabel} wind — dangerously strong, expert conditions only.`;
   }
 
-  // Shoreline bonus note
+  // Shoreline / offshore warning
   if (shorelineDirection !== undefined && shorelineAngle !== null) {
     const shoreDirLabel = degToCompass(shorelineDirection);
-    if (shorelineBonus >= 1.2) {
-      summary += ` The ${windDirLabel} wind runs parallel to the ${shoreDirLabel} shoreline — ideal for a long downwind run (+${shorelineBonus.toFixed(1)} bonus).`;
+    if (isOffshore) {
+      summary += ` Warning: ${windDirLabel} wind is blowing offshore along this coast — exercise caution and ensure safe exit points.`;
     } else if (shorelineBonus >= 0.4) {
-      summary += ` Wind has some alignment with the ${shoreDirLabel} coast (+${shorelineBonus.toFixed(1)} bonus).`;
-    } else if (shorelineDirection !== undefined) {
-      summary += ` Wind doesn't favour the ${shoreDirLabel} shoreline run today.`;
+      summary += ` ${windDirLabel} wind runs parallel to the ${shoreDirLabel} coastline — ideal fetch for a long downwind run.`;
     }
   }
 
