@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { MapPin, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetWeatherForecast } from "@workspace/api-client-react";
 import { LocationSearch } from "@/components/LocationSearch";
 import { ForecastCard } from "@/components/ForecastCard";
+import { AdCard } from "@/components/AdCard";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingGrid";
 import type { GeocodeLocation } from "@workspace/api-client-react/src/generated/api.schemas";

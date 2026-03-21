@@ -74,6 +74,39 @@ export const GetWeatherForecastResponse = zod.object({
 });
 
 /**
+ * @summary Request a presigned upload URL
+ */
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string(),
+  size: zod.number(),
+  contentType: zod.string(),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string(),
+  objectPath: zod.string(),
+  metadata: zod.object({
+    name: zod.string(),
+    size: zod.number(),
+    contentType: zod.string(),
+  }),
+});
+
+/**
+ * @summary Get the currently active advertisement
+ */
+export const GetCurrentAdResponse = zod.object({
+  ad: zod.union([
+    zod.object({
+      id: zod.string(),
+      imagePath: zod.string(),
+      linkUrl: zod.string(),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
  * Returns lat/lon for a given place name using Open-Meteo geocoding API
  * @summary Geocode a location name to coordinates
  */

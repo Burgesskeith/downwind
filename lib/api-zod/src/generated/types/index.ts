@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./adItem";
+export * from "./adResponse";
 export * from "./dayForecast";
 export * from "./errorResponse";
 export * from "./geocodeLocation";
@@ -13,4 +15,7 @@ export * from "./geocodeLocationParams";
 export * from "./geocodeResult";
 export * from "./getWeatherForecastParams";
 export * from "./healthStatus";
+export * from "./requestUploadUrlBody";
+export * from "./requestUploadUrlResponse";
+export * from "./requestUploadUrlResponseMetadata";
 export * from "./weatherForecast";

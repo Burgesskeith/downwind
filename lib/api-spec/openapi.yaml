@@ -11,6 +11,10 @@ tags:
     description: Health operations
   - name: weather
     description: Marine weather forecast operations
+  - name: storage
+    description: Object storage operations
+  - name: ads
+    description: Advertisement operations
 paths:
   /healthz:
     get:
@@ -75,6 +79,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /ads/current:
+    get:
+      operationId: getCurrentAd
+      tags: [ads]
+      summary: Get the currently active advertisement
+      responses:
+        "200":
+          description: Active ad or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdResponse"
   /weather/geocode:
     get:
       operationId: geocodeLocation
@@ -210,6 +250,65 @@ components:
             $ref: "#/components/schemas/GeocodeLocation"
       required:
         - results
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: number
+        contentType:
+          type: string
+      required:
+        - name
+        - size
+        - contentType
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          type: object
+          properties:
+            name:
+              type: string
+            size:
+              type: number
+            contentType:
+              type: string
+          required:
+            - name
+            - size
+            - contentType
+      required:
+        - uploadURL
+        - objectPath
+        - metadata
+    AdItem:
+      type: object
+      properties:
+        id:
+          type: string
+        imagePath:
+          type: string
+        linkUrl:
+          type: string
+      required:
+        - id
+        - imagePath
+        - linkUrl
+    AdResponse:
+      type: object
+      properties:
+        ad:
+          oneOf:
+            - $ref: "#/components/schemas/AdItem"
+            - type: "null"
+      required:
+        - ad
     ErrorResponse:
       type: object
       properties:
