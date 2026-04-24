@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { Link } from "wouter";
 import { MapPin, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -127,8 +127,20 @@ export default function Home() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {forecast.days.map((day, idx) => (
-                  <ForecastCard key={day.date} forecast={day} index={idx} />
+                  <Fragment key={day.date}>
+                    <ForecastCard forecast={day} index={idx} />
+                    {idx === 0 && <AdCard />}
+                  </Fragment>
                 ))}
+              </div>
+
+              <div className="mt-12 text-center">
+                <Link
+                  href="/advertise"
+                  className="inline-block text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
+                >
+                  Advertise on Paddle Planner →
+                </Link>
               </div>
             </motion.div>
           )}
