@@ -47,6 +47,20 @@ artifacts-monorepo/
 
 - `GET /api/weather/geocode?query=...` — Geocode location name to lat/lon
 - `GET /api/weather/forecast?lat=...&lon=...&locationName=...` — 7-day paddle forecast
+- `POST /api/ads/checkout` — Creates a Stripe Checkout session for buying an ad slot ($19.99)
+- `GET /api/ads/verify?session_id=...` — Verifies Stripe payment, creates ad record
+- `POST /api/ads/upload` — Saves the uploaded image path + click-through URL, activates the ad
+- `GET /api/ads/current` — Returns the currently active ad (image + link), or null
+- `POST /api/storage/uploads/request-url` — Returns a presigned URL for direct image upload
+- `GET /api/storage/public-objects/*` — Serves uploaded ad images publicly
+
+## Advertising / Stripe
+
+The `/advertise` page lets businesses pay $19.99 for a 320×100 banner shown after today's forecast.
+
+**Stripe is not yet configured.** The user dismissed the Replit Stripe integration. To enable payments, add `STRIPE_SECRET_KEY` to project secrets (use `sk_test_...` for testing, `sk_live_...` for production). Until configured, the checkout button will return an error but the rest of the app works fine — the ad card simply doesn't render when no active ad exists.
+
+Ad data is stored in the `ads` PostgreSQL table (`stripe_session_id`, `image_path`, `link_url`, `active`, etc). Banner images live in object storage.
 
 ## TypeScript & Composite Projects
 
