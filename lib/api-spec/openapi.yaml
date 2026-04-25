@@ -60,6 +60,13 @@ paths:
           schema:
             type: number
           description: The compass bearing (degrees) the paddler wants to travel, parallel to the shoreline. Wind aligned with this direction earns bonus points.
+        - name: skill
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced]
+          description: Paddler skill level. Adjusts the scoring thresholds for ideal wind speed and swell size.
       responses:
         "200":
           description: 7-day forecast

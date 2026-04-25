@@ -40,7 +40,8 @@ artifacts-monorepo/
 
 - **Location search** — Users type a beach or coastal town name; geocoded via Open-Meteo geocoding API
 - **7-day forecast cards** — Each day shows score (1–10), condition label, wind info, swell info, alignment angle, and a short summary paragraph
-- **Scoring algorithm** — Weights: wind/swell directional alignment (4 pts), swell height (2.5 pts), swell period (2 pts), wind speed (1.5 pts)
+- **Scoring algorithm** — Weights: wind/swell directional alignment (3.5 pts), swell height (2.5 pts), swell period (2 pts), wind speed (2.5 pts), shoreline alignment (±1 pt). Adjusted by skill level via `SKILL_PROFILES` in `weather.ts` (different ideal wind/swell bands per skill).
+- **Skill level selector** — Beginner / Intermediate / Advanced dropdown next to the search box. Persisted in `localStorage`. Sent to `/weather/forecast` as `?skill=...` query param. Heavy conditions are capped at lower scores for beginners; light conditions score lower for advanced paddlers.
 - **Free data sources** — Open-Meteo marine API + Open-Meteo forecast API (no API key required)
 
 ## API Routes

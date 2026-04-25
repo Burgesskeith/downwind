@@ -32,6 +32,12 @@ export const GetWeatherForecastQueryParams = zod.object({
     .describe(
       "The compass bearing (degrees) the paddler wants to travel, parallel to the shoreline. Wind aligned with this direction earns bonus points.",
     ),
+  skill: zod
+    .enum(["beginner", "intermediate", "advanced"])
+    .optional()
+    .describe(
+      "Paddler skill level. Adjusts the scoring thresholds for ideal wind speed and swell size.",
+    ),
 });
 
 export const GetWeatherForecastResponse = zod.object({

@@ -5,6 +5,7 @@
  * Marine Weather Paddle Planner API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetWeatherForecastSkill } from "./getWeatherForecastSkill";
 
 export type GetWeatherForecastParams = {
   /**
@@ -23,4 +24,8 @@ export type GetWeatherForecastParams = {
    * The compass bearing (degrees) the paddler wants to travel, parallel to the shoreline. Wind aligned with this direction earns bonus points.
    */
   paddlingDirection?: number;
+  /**
+   * Paddler skill level. Adjusts the scoring thresholds for ideal wind speed and swell size.
+   */
+  skill?: GetWeatherForecastSkill;
 };

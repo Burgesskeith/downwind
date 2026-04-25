@@ -70,6 +70,48 @@ async function detectShorelineDirection(lat: number, lon: number): Promise<numbe
   return (avgOceanDeg + 90) % 360;
 }
 
+type SkillLevel = "beginner" | "intermediate" | "advanced";
+
+interface SkillProfile {
+  windIdealMin: number;   // km/h
+  windIdealMax: number;
+  windDanger: number;     // above this, score drops to 0
+  swellIdealMin: number;  // metres
+  swellIdealMax: number;
+  swellDanger: number;    // above this, score drops to 0
+}
+
+const SKILL_PROFILES: Record<SkillLevel, SkillProfile> = {
+  beginner: {
+    windIdealMin: 19, windIdealMax: 32, windDanger: 46,
+    swellIdealMin: 0.4, swellIdealMax: 1.5, swellDanger: 2.5,
+  },
+  intermediate: {
+    windIdealMin: 28, windIdealMax: 46, windDanger: 65,
+    swellIdealMin: 1.0, swellIdealMax: 2.5, swellDanger: 3.5,
+  },
+  advanced: {
+    windIdealMin: 37, windIdealMax: 65, windDanger: 80,
+    swellIdealMin: 1.5, swellIdealMax: 3.5, swellDanger: 5.0,
+  },
+};
+
+/**
+ * Score a value against a skill profile band. Returns max points if value is
+ * inside the ideal band, declining linearly as it moves outside, hitting 0 at
+ * the danger threshold (above) or at zero/very small (below).
+ */
+function bandScore(value: number, idealMin: number, idealMax: number, danger: number, maxPts: number): number {
+  if (value >= idealMin && value <= idealMax) return maxPts;
+  if (value < idealMin) {
+    // Below ideal — linear decline from maxPts at idealMin to 0 at zero
+    return Math.max(0, maxPts * (value / idealMin));
+  }
+  // Above ideal — linear decline from maxPts at idealMax to 0 at danger
+  if (value >= danger) return 0;
+  return Math.max(0, maxPts * (1 - (value - idealMax) / (danger - idealMax)));
+}
+
 function scorePaddlingDay(params: {
   windSpeed: number;       // km/h
   windDirection: number;   // degrees meteorological
@@ -77,45 +119,31 @@ function scorePaddlingDay(params: {
   swellPeriod: number;     // seconds
   swellDirection: number;  // degrees
   shorelineDirection?: number;
+  skill: SkillLevel;
 }): { score: number; summary: string; conditionLabel: string; alignmentAngle: number } {
-  const { windSpeed, windDirection, swellHeight, swellPeriod, swellDirection, shorelineDirection } = params;
+  const { windSpeed, windDirection, swellHeight, swellPeriod, swellDirection, shorelineDirection, skill } = params;
+  const profile = SKILL_PROFILES[skill];
 
   const alignmentAngle = angleDiff(windDirection, swellDirection);
   const opposing = alignmentAngle > 120;
 
   // ─── Wind / Swell alignment (max 3.5 pts) ───────────────────────────────
-  // Best: same direction. Avoid cross (messy) and opposing (kills glide).
+  // Beginners care less about alignment (they're not chasing big runners).
+  // Advanced paddlers can handle some cross chop.
+  const alignmentMax = skill === "beginner" ? 2.5 : 3.5;
   let alignmentScore: number;
-  if      (alignmentAngle <= 20)  alignmentScore =  3.5;  // perfectly aligned
-  else if (alignmentAngle <= 45)  alignmentScore =  2.5;  // good
-  else if (alignmentAngle <= 70)  alignmentScore =  1.5;  // acceptable cross
-  else if (alignmentAngle <= 90)  alignmentScore =  0.5;  // messy cross
-  else if (alignmentAngle <= 120) alignmentScore = -0.5;  // confused seas
-  else                            alignmentScore = -2.0;  // opposing — kills glide
+  if      (alignmentAngle <= 20)  alignmentScore =  alignmentMax;       // perfectly aligned
+  else if (alignmentAngle <= 45)  alignmentScore =  alignmentMax * 0.7; // good
+  else if (alignmentAngle <= 70)  alignmentScore =  alignmentMax * 0.4; // acceptable cross
+  else if (alignmentAngle <= 90)  alignmentScore =  0.3;                // messy cross
+  else if (alignmentAngle <= 120) alignmentScore = skill === "advanced" ? -0.2 : -0.5;
+  else                            alignmentScore = skill === "advanced" ? -1.5 : -2.0; // opposing
 
-  // ─── Wind speed (max 2.5 pts) ────────────────────────────────────────────
-  // 15–25 knots (28–46 km/h) is the core sweet spot.
-  // 10–15 knots (19–28 km/h): beginner-friendly.
-  // 25–30 knots (46–56 km/h): advanced/powerful runs.
-  // >35 knots (>65 km/h): dangerous.
-  let windScore: number;
-  if      (windSpeed >= 28 && windSpeed <= 46) windScore = 2.5;  // 15–25 kn ideal
-  else if (windSpeed >  46 && windSpeed <= 56) windScore = 2.0;  // 25–30 kn advanced
-  else if (windSpeed >  19 && windSpeed <  28) windScore = 1.5;  // 10–15 kn beginner
-  else if (windSpeed >  56 && windSpeed <= 65) windScore = 1.0;  // 30–35 kn strong
-  else if (windSpeed >  10 && windSpeed <= 19) windScore = 0.5;  // 5–10 kn very light
-  else if (windSpeed >  65)                    windScore = 0.0;  // >35 kn dangerous
-  else                                         windScore = 0.0;  // <5 kn — flat, no push
+  // ─── Wind speed (max 2.5 pts), tuned to skill profile ────────────────────
+  const windScore = bandScore(windSpeed, profile.windIdealMin, profile.windIdealMax, profile.windDanger, 2.5);
 
-  // ─── Swell height (max 2.5 pts) ──────────────────────────────────────────
-  // Ideal: 1–2.5 m. Too small → no energy; too large → survival paddling.
-  let swellScore: number;
-  if      (swellHeight >= 1.0 && swellHeight <= 2.5) swellScore = 2.5;  // ideal
-  else if (swellHeight >  2.5 && swellHeight <= 3.5) swellScore = 1.5;  // large, demanding
-  else if (swellHeight >= 0.5 && swellHeight <  1.0) swellScore = 1.5;  // small, still fun
-  else if (swellHeight >  3.5)                       swellScore = 0.5;  // extreme
-  else if (swellHeight >= 0.2 && swellHeight <  0.5) swellScore = 0.5;  // very small
-  else                                               swellScore = 0.0;  // flat
+  // ─── Swell height (max 2.5 pts), tuned to skill profile ──────────────────
+  const swellScore = bandScore(swellHeight, profile.swellIdealMin, profile.swellIdealMax, profile.swellDanger, 2.5);
 
   // ─── Swell period (max 2.0 pts) ──────────────────────────────────────────
   // 6–10 s wind swell creates the fast "bumps" and runners for downwind.
@@ -164,6 +192,12 @@ function scorePaddlingDay(params: {
 
   // Hard cap for opposing conditions — opposing wind kills all forward glide.
   if (opposing) score = Math.min(score, 3.5);
+
+  // Hard cap if conditions exceed the paddler's safe ceiling
+  if (windSpeed >= profile.windDanger || swellHeight >= profile.swellDanger) {
+    const safeCap = skill === "beginner" ? 2.5 : skill === "intermediate" ? 4.5 : 6.0;
+    score = Math.min(score, safeCap);
+  }
 
   score = Math.min(10, Math.max(1, Math.round(score * 10) / 10));
 
@@ -245,6 +279,19 @@ function scorePaddlingDay(params: {
     }
   }
 
+  // Skill-specific verdict
+  if (skill === "beginner") {
+    if (windSpeed >= profile.windDanger || swellHeight >= profile.swellDanger) {
+      summary += ` Beginner verdict: too much going on — sit this one out or stick to a sheltered bay.`;
+    } else if (score >= 6) {
+      summary += ` Beginner verdict: comfortable conditions to build confidence and practice runs.`;
+    }
+  } else if (skill === "advanced") {
+    if (score >= 7 && (windSpeed >= profile.windIdealMin || swellHeight >= profile.swellIdealMin)) {
+      summary += ` Advanced verdict: powerful day — bring the downwind board and chase the bumps.`;
+    }
+  }
+
   return { score, summary, conditionLabel, alignmentAngle: Math.round(alignmentAngle) };
 }
 
@@ -264,6 +311,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
     lon: req.query.lon ? Number(req.query.lon) : undefined,
     locationName: req.query.locationName,
     paddlingDirection: req.query.paddlingDirection ? Number(req.query.paddlingDirection) : undefined,
+    skill: req.query.skill,
   });
 
   if (!parseResult.success) {
@@ -272,6 +320,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
   }
 
   const { lat, lon, locationName } = parseResult.data;
+  const skill: SkillLevel = (parseResult.data.skill as SkillLevel | undefined) ?? "intermediate";
   // Use supplied paddling direction, or auto-detect from coastline
   let shorelineDirection: number | undefined = parseResult.data.paddlingDirection;
 
@@ -353,6 +402,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
         swellPeriod,
         swellDirection,
         shorelineDirection,
+        skill,
       });
 
       return {

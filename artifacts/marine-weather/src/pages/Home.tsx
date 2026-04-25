@@ -1,4 +1,4 @@
-import { useState, Fragment } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { Link } from "wouter";
 import { MapPin, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,16 +8,34 @@ import { ForecastCard } from "@/components/ForecastCard";
 import { AdCard } from "@/components/AdCard";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingGrid";
+import { SkillSelector, type SkillLevel } from "@/components/SkillSelector";
 import type { GeocodeLocation } from "@workspace/api-client-react/src/generated/api.schemas";
+
+const SKILL_STORAGE_KEY = "paddle-planner-skill";
+
+function loadSkill(): SkillLevel {
+  if (typeof window === "undefined") return "intermediate";
+  const saved = window.localStorage.getItem(SKILL_STORAGE_KEY);
+  if (saved === "beginner" || saved === "intermediate" || saved === "advanced") return saved;
+  return "intermediate";
+}
 
 export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(null);
+  const [skill, setSkill] = useState<SkillLevel>(loadSkill);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SKILL_STORAGE_KEY, skill);
+    }
+  }, [skill]);
 
   const { data: forecast, isLoading, isError, error } = useGetWeatherForecast(
-    { 
-      lat: selectedLocation?.lat as number, 
+    {
+      lat: selectedLocation?.lat as number,
       lon: selectedLocation?.lon as number,
       locationName: selectedLocation?.name,
+      skill,
     },
     {
       query: {
@@ -67,10 +85,11 @@ export default function Home() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="w-full flex flex-col items-center gap-4"
           >
-            <LocationSearch 
-              onSelect={setSelectedLocation} 
+            <LocationSearch
+              onSelect={setSelectedLocation}
               selectedName={selectedLocation?.name}
             />
+            <SkillSelector value={skill} onChange={setSkill} />
           </motion.div>
         </div>
       </section>

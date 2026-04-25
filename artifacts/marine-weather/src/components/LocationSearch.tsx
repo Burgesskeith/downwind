@@ -48,17 +48,17 @@ export function LocationSearch({ onSelect, selectedName }: LocationSearchProps) 
   return (
     <div className="relative w-full max-w-2xl mx-auto" ref={containerRef}>
       <div className="relative group">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/70 group-focus-within:text-primary transition-colors">
           <Search className="h-5 w-5" />
         </div>
         <input
           type="text"
           className={cn(
-            "block w-full pl-12 pr-12 py-4 bg-white/90 dark:bg-black/60 backdrop-blur-md",
-            "border border-white/20 dark:border-white/10 rounded-2xl",
-            "text-foreground placeholder-muted-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50",
-            "shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]",
+            "block w-full pl-12 pr-12 py-4 bg-slate-900/50 backdrop-blur-md",
+            "border border-white/20 rounded-2xl",
+            "text-white placeholder-white/60 caret-white",
+            "focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/50",
+            "shadow-[0_8px_30px_rgb(0,0,0,0.2)]",
             "transition-all duration-300 text-lg font-medium"
           )}
           placeholder="Search for a beach or coastal town..."

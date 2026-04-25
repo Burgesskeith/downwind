@@ -106,7 +106,20 @@ export type GetWeatherForecastParams = {
    * The compass bearing (degrees) the paddler wants to travel, parallel to the shoreline. Wind aligned with this direction earns bonus points.
    */
   paddlingDirection?: number;
+  /**
+   * Paddler skill level. Adjusts the scoring thresholds for ideal wind speed and swell size.
+   */
+  skill?: GetWeatherForecastSkill;
 };
+
+export type GetWeatherForecastSkill =
+  (typeof GetWeatherForecastSkill)[keyof typeof GetWeatherForecastSkill];
+
+export const GetWeatherForecastSkill = {
+  beginner: "beginner",
+  intermediate: "intermediate",
+  advanced: "advanced",
+} as const;
 
 export type GeocodeLocationParams = {
   /**
