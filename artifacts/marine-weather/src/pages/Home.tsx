@@ -120,7 +120,7 @@ export default function Home() {
               <AlertCircle className="w-12 h-12 text-destructive mb-4" />
               <h3 className="text-xl font-bold text-foreground mb-2">Failed to load forecast</h3>
               <p className="text-muted-foreground">
-                {error?.error || "We couldn't retrieve the marine weather data for this location. Please try again later."}
+                {error?.data?.error || "We couldn't retrieve the marine weather data for this location. Please try again later."}
               </p>
             </motion.div>
           )}
