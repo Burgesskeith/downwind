@@ -15,7 +15,7 @@ export function EmptyState() {
         Ready for a downwinder?
       </h2>
       <p className="text-lg text-muted-foreground">
-        Search for your favorite beach or coastal spot above to get a 7-day marine forecast optimized for paddle boarding.
+        Search for your favorite beach or coastal spot above to get a 7-day marine forecast optimised for downwind ski paddling.
       </p>
     </motion.div>
   );
