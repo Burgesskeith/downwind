@@ -62,7 +62,9 @@ export default function Home() {
             alt="Deep blue ocean waves rolling in the open sea"
             className="w-full h-full object-cover object-bottom scale-[1.35] origin-bottom"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background/55 to-background" />
+          {/* Top: untouched ocean. Bottom: fade smoothly into page bg. */}
+          <div className="absolute inset-x-0 top-0 h-[55%] bg-gradient-to-b from-transparent to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-b from-transparent via-background/60 to-background" />
         </div>
 
         <div className="max-w-4xl mx-auto text-center relative z-10">
