@@ -56,13 +56,13 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative z-20 pt-24 pb-32 px-4 sm:px-6 lg:px-8">
-        <div className="absolute inset-0 -z-20">
-          <img 
+        <div className="absolute inset-0 -z-20 overflow-hidden">
+          <img
             src={`${import.meta.env.BASE_URL}images/hero-ocean.png`}
             alt="Deep blue ocean waves rolling in the open sea"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-bottom scale-[1.35] origin-bottom"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/95 to-background" />
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background/55 to-background" />
         </div>
 
         <div className="max-w-4xl mx-auto text-center relative z-10">
