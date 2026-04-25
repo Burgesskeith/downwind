@@ -55,7 +55,7 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative pt-24 pb-32 px-4 sm:px-6 lg:px-8">
+      <section className="relative z-20 pt-24 pb-32 px-4 sm:px-6 lg:px-8">
         <div className="absolute inset-0 -z-20">
           <img 
             src={`${import.meta.env.BASE_URL}images/hero-ocean.png`}
