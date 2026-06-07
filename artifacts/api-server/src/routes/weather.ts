@@ -198,28 +198,40 @@ function scorePaddlingDay(params: {
     isOffshore = offshoreAngle <= 35;
 
     if (isOffshore) {
-      shorelineBonus = -1.0;
       shorelineAlignmentLabel = "Offshore";
     } else if (shorelineAngle <= 15) {
-      shorelineBonus = 1.0;
       shorelineAlignmentLabel = "Perfect";
     } else if (shorelineAngle <= 30) {
-      shorelineBonus = 0.75;
       shorelineAlignmentLabel = "Excellent";
     } else if (shorelineAngle <= 50) {
-      shorelineBonus = 0.4;
       shorelineAlignmentLabel = "Good";
     } else if (shorelineAngle <= 70) {
-      shorelineBonus = 0.1;
       shorelineAlignmentLabel = "Fair";
     } else {
-      shorelineBonus = 0;
       shorelineAlignmentLabel = "Poor";
     }
   }
 
+  // ─── Shore alignment multiplier ──────────────────────────────────────────
+  // Shore alignment gates whether a downwind run is even possible — a great
+  // wind/swell score should not survive a perpendicular or offshore wind.
+  // Applied as a multiplier on the base score so the effect scales with
+  // how good conditions would otherwise be.
+  let shoreMult = 1.0; // default when shore can't be detected
+  if (shorelineDirection !== undefined && shorelineDirection !== null) {
+    if (isOffshore) {
+      shoreMult = 0.15;                                        // safety hazard
+    } else if (shorelineAngle !== null) {
+      if      (shorelineAngle <= 15) shoreMult = 1.00;        // Perfect
+      else if (shorelineAngle <= 30) shoreMult = 0.90;        // Excellent
+      else if (shorelineAngle <= 50) shoreMult = 0.75;        // Good
+      else if (shorelineAngle <= 70) shoreMult = 0.55;        // Fair
+      else                           shoreMult = 0.35;        // Poor
+    }
+  }
+
   // ─── Total ────────────────────────────────────────────────────────────────
-  let score = alignmentScore + windScore + swellScore + periodScore + shorelineBonus;
+  let score = (alignmentScore + windScore + swellScore + periodScore) * shoreMult;
 
   // Hard cap for opposing conditions — opposing wind kills all forward glide.
   if (opposing) score = Math.min(score, 3.5);
