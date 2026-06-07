@@ -189,11 +189,12 @@ function scorePaddlingDay(params: {
     // Combined angle stored for reference but scoring uses wind-only
     combinedShoreAngle = Math.round(shorelineAngle);
 
-    // Offshore = wind roughly perpendicular to shore (blowing away from coast)
-    const offshoreAngle = Math.min(
-      angleDiff(windDirection, (shorelineDirection + 90) % 360),
-      angleDiff(windDirection, (shorelineDirection + 270) % 360)
-    );
+    // Wind direction is the FROM direction (meteorological convention).
+    // Offshore = wind coming FROM the land side (i.e. blowing out to sea).
+    // The land-side perpendicular to the shoreline is (shorelineDirection + 90).
+    // We do NOT check the ocean-side perpendicular (shorelineDirection + 270)
+    // because wind FROM that direction is onshore — safe, not a hazard.
+    const offshoreAngle = angleDiff(windDirection, (shorelineDirection + 90) % 360);
     isOffshore = offshoreAngle <= 35;
 
     if (isOffshore) {
