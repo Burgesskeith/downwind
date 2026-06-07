@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { format, parseISO } from "date-fns";
-import { Wind, Waves, Compass, Activity } from "lucide-react";
+import { Wind, Waves, Compass } from "lucide-react";
 import { cn, getScoreColorClasses } from "@/lib/utils";
 import type { DayForecast } from "@workspace/api-client-react/src/generated/api.schemas";
 
@@ -89,22 +89,6 @@ export function ForecastCard({ forecast, index }: ForecastCardProps) {
           </div>
         </div>
         
-        {/* Wind/Swell Alignment */}
-        <div className="col-span-2 flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-primary/5 to-transparent border border-primary/10">
-          <div className="flex items-center gap-2 text-foreground font-medium">
-            <Activity className="w-4 h-4 text-primary" />
-            Wind/Swell Alignment
-          </div>
-          <div className={cn(
-            "px-3 py-1 rounded-full text-sm font-bold shadow-sm",
-            forecast.alignmentAngle <= 45 ? "bg-emerald-100 text-emerald-700 border border-emerald-200" :
-            forecast.alignmentAngle <= 90 ? "bg-blue-100 text-blue-700 border border-blue-200" :
-            "bg-rose-100 text-rose-700 border border-rose-200"
-          )}>
-            {forecast.alignmentAngle}° offset
-          </div>
-        </div>
-
         {/* Shoreline Alignment */}
         <div className="col-span-2 flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-accent/5 to-transparent border border-accent/10">
           <div className="flex items-center gap-2 text-foreground font-medium">
