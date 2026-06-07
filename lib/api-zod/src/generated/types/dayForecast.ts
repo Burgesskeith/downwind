@@ -29,6 +29,10 @@ export interface DayForecast {
   swellDirectionLabel: string;
   /** Angle between wind and swell directions (lower is better for downwind) */
   alignmentAngle: number;
+  /** Combined wind+swell angle offset from the shoreline direction (0° = perfectly parallel). Null if shoreline could not be detected. */
+  shorelineAlignmentAngle: number | null;
+  /** Human label for shoreline alignment e.g. "Perfect", "Excellent", "Good", "Fair", "Poor", "Offshore". Null if shoreline not detected. */
+  shorelineAlignmentLabel: string | null;
   /** A short paragraph describing the conditions */
   summary: string;
   /** Quick label e.g. "Epic", "Good", "Fair", "Poor" */

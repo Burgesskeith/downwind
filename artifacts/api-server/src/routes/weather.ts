@@ -157,17 +157,28 @@ function scorePaddlingDay(params: {
   else if (swellPeriod >  18)                      periodScore = 0.5;  // very long, hard to link
   else                                             periodScore = 0.0;  // <5 s — pure chop
 
-  // ─── Shoreline alignment bonus (max 0.5 pts, penalty for offshore) ───────
-  // Wind parallel to the coast = ideal downwind run.
-  // Wind blowing offshore (perpendicular away from shore) = dangerous.
+  // ─── Shoreline alignment (wind + swell vs shore, max 1.0 pt, penalty for offshore) ──
+  // Ideal: both wind AND swell run parallel to the coast for a long downwind run.
+  // Offshore wind (perpendicular away from shore) is a safety hazard.
   let shorelineBonus = 0;
-  let shorelineAngle: number | null = null;
+  let shorelineAngle: number | null = null;   // wind vs shore
+  let swellShoreAngle: number | null = null;  // swell vs shore
+  let combinedShoreAngle: number | null = null; // weighted average, returned to client
+  let shorelineAlignmentLabel: string | null = null;
   let isOffshore = false;
   if (shorelineDirection !== undefined && shorelineDirection !== null) {
-    // Angle between wind and shore-parallel axis (bidirectional)
-    const diff1 = angleDiff(windDirection, shorelineDirection);
-    const diff2 = angleDiff(windDirection, (shorelineDirection + 180) % 360);
-    shorelineAngle = Math.min(diff1, diff2);
+    // Wind angle to shore-parallel axis (bidirectional — 0° = parallel, 90° = perpendicular)
+    const windDiff1 = angleDiff(windDirection, shorelineDirection);
+    const windDiff2 = angleDiff(windDirection, (shorelineDirection + 180) % 360);
+    shorelineAngle = Math.min(windDiff1, windDiff2);
+
+    // Swell angle to shore-parallel axis
+    const swellDiff1 = angleDiff(swellDirection, shorelineDirection);
+    const swellDiff2 = angleDiff(swellDirection, (shorelineDirection + 180) % 360);
+    swellShoreAngle = Math.min(swellDiff1, swellDiff2);
+
+    // Combined: swell drives the runner quality more than wind direction alone
+    combinedShoreAngle = Math.round(shorelineAngle * 0.45 + swellShoreAngle * 0.55);
 
     // Offshore = wind roughly perpendicular to shore (blowing away from coast)
     const offshoreAngle = Math.min(
@@ -177,13 +188,23 @@ function scorePaddlingDay(params: {
     isOffshore = offshoreAngle <= 35;
 
     if (isOffshore) {
-      shorelineBonus = -1.0; // offshore wind — safety hazard
-    } else if (shorelineAngle <= 25) {
-      shorelineBonus = 0.5;  // wind running parallel to coast — ideal
-    } else if (shorelineAngle <= 50) {
-      shorelineBonus = 0.25; // slight angle
+      shorelineBonus = -1.0;
+      shorelineAlignmentLabel = "Offshore";
+    } else if (combinedShoreAngle <= 15) {
+      shorelineBonus = 1.0;
+      shorelineAlignmentLabel = "Perfect";
+    } else if (combinedShoreAngle <= 30) {
+      shorelineBonus = 0.75;
+      shorelineAlignmentLabel = "Excellent";
+    } else if (combinedShoreAngle <= 50) {
+      shorelineBonus = 0.4;
+      shorelineAlignmentLabel = "Good";
+    } else if (combinedShoreAngle <= 70) {
+      shorelineBonus = 0.1;
+      shorelineAlignmentLabel = "Fair";
     } else {
       shorelineBonus = 0;
+      shorelineAlignmentLabel = "Poor";
     }
   }
 
@@ -269,13 +290,17 @@ function scorePaddlingDay(params: {
     summary += `${Math.round(windSpeed)} km/h (${Math.round(windSpeed / 1.852)} kn) ${windDirLabel} wind — dangerously strong, expert conditions only.`;
   }
 
-  // Shoreline / offshore warning
-  if (shorelineDirection !== undefined && shorelineAngle !== null) {
+  // Shoreline / offshore alignment summary
+  if (shorelineDirection !== undefined && shorelineAngle !== null && swellShoreAngle !== null) {
     const shoreDirLabel = degToCompass(shorelineDirection);
     if (isOffshore) {
       summary += ` Warning: ${windDirLabel} wind is blowing offshore along this coast — exercise caution and ensure safe exit points.`;
-    } else if (shorelineBonus >= 0.4) {
-      summary += ` ${windDirLabel} wind runs parallel to the ${shoreDirLabel} coastline — ideal fetch for a long downwind run.`;
+    } else if (shorelineAlignmentLabel === "Perfect" || shorelineAlignmentLabel === "Excellent") {
+      summary += ` Wind (${Math.round(shorelineAngle)}° off shore) and swell (${Math.round(swellShoreAngle)}° off shore) are both tracking along the ${shoreDirLabel} coastline — ideal alignment for a long downwind run.`;
+    } else if (shorelineAlignmentLabel === "Good") {
+      summary += ` Wind and swell are reasonably aligned with the ${shoreDirLabel} coastline (${combinedShoreAngle}° combined offset) — decent run potential with some angle.`;
+    } else if (combinedShoreAngle !== null && combinedShoreAngle > 70) {
+      summary += ` Wind and swell are significantly off the ${shoreDirLabel} shoreline direction (${combinedShoreAngle}° combined offset) — limited run potential along this coast.`;
     }
   }
 
@@ -292,7 +317,14 @@ function scorePaddlingDay(params: {
     }
   }
 
-  return { score, summary, conditionLabel, alignmentAngle: Math.round(alignmentAngle) };
+  return {
+    score,
+    summary,
+    conditionLabel,
+    alignmentAngle: Math.round(alignmentAngle),
+    shorelineAlignmentAngle: combinedShoreAngle,
+    shorelineAlignmentLabel,
+  };
 }
 
 function getDayLabel(dateStr: string): string {
@@ -395,7 +427,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
       const windSpeed = windData.daily.wind_speed_10m_max[i] ?? 0;
       const windDirection = windData.daily.wind_direction_10m_dominant[i] ?? 0;
 
-      const { score, summary, conditionLabel, alignmentAngle } = scorePaddlingDay({
+      const { score, summary, conditionLabel, alignmentAngle, shorelineAlignmentAngle, shorelineAlignmentLabel } = scorePaddlingDay({
         windSpeed,
         windDirection,
         swellHeight,
@@ -419,6 +451,8 @@ router.get("/forecast", async (req: Request, res: Response) => {
         alignmentAngle,
         summary,
         conditionLabel,
+        shorelineAlignmentAngle,
+        shorelineAlignmentLabel,
       };
     });
 

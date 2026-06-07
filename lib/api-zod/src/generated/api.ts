@@ -69,6 +69,18 @@ export const GetWeatherForecastResponse = zod.object({
         .describe(
           "Angle between wind and swell directions (lower is better for downwind)",
         ),
+      shorelineAlignmentAngle: zod
+        .number()
+        .nullable()
+        .describe(
+          "Combined wind+swell angle offset from the shoreline direction (0° = perfectly parallel). Null if shoreline could not be detected.",
+        ),
+      shorelineAlignmentLabel: zod
+        .string()
+        .nullable()
+        .describe(
+          'Human label for shoreline alignment e.g. \"Perfect\", \"Excellent\", \"Good\", \"Fair\", \"Poor\", \"Offshore\". Null if shoreline not detected.',
+        ),
       summary: zod
         .string()
         .describe("A short paragraph describing the conditions"),

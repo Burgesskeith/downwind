@@ -89,7 +89,7 @@ export function ForecastCard({ forecast, index }: ForecastCardProps) {
           </div>
         </div>
         
-        {/* Alignment */}
+        {/* Wind/Swell Alignment */}
         <div className="col-span-2 flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-primary/5 to-transparent border border-primary/10">
           <div className="flex items-center gap-2 text-foreground font-medium">
             <Activity className="w-4 h-4 text-primary" />
@@ -101,8 +101,34 @@ export function ForecastCard({ forecast, index }: ForecastCardProps) {
             forecast.alignmentAngle <= 90 ? "bg-blue-100 text-blue-700 border border-blue-200" :
             "bg-rose-100 text-rose-700 border border-rose-200"
           )}>
-            {forecast.alignmentAngle}° Diff
+            {forecast.alignmentAngle}° offset
           </div>
+        </div>
+
+        {/* Shoreline Alignment */}
+        <div className="col-span-2 flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-accent/5 to-transparent border border-accent/10">
+          <div className="flex items-center gap-2 text-foreground font-medium">
+            <Compass className="w-4 h-4 text-accent" />
+            Shore Alignment
+          </div>
+          {forecast.shorelineAlignmentLabel ? (
+            <div className={cn(
+              "flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold shadow-sm",
+              forecast.shorelineAlignmentLabel === "Perfect"   ? "bg-emerald-100 text-emerald-700 border border-emerald-200" :
+              forecast.shorelineAlignmentLabel === "Excellent" ? "bg-green-100 text-green-700 border border-green-200" :
+              forecast.shorelineAlignmentLabel === "Good"      ? "bg-blue-100 text-blue-700 border border-blue-200" :
+              forecast.shorelineAlignmentLabel === "Fair"      ? "bg-amber-100 text-amber-700 border border-amber-200" :
+              forecast.shorelineAlignmentLabel === "Offshore"  ? "bg-rose-100 text-rose-700 border border-rose-200" :
+                                                                 "bg-muted text-muted-foreground border border-border"
+            )}>
+              {forecast.shorelineAlignmentLabel}
+              {forecast.shorelineAlignmentAngle != null && forecast.shorelineAlignmentLabel !== "Offshore" && (
+                <span className="opacity-70 font-normal">· {forecast.shorelineAlignmentAngle}°</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground italic">Not detected</span>
+          )}
         </div>
 
       </div>

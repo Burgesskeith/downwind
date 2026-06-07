@@ -193,6 +193,14 @@ components:
         alignmentAngle:
           type: number
           description: Angle between wind and swell directions (lower is better for downwind)
+        shorelineAlignmentAngle:
+          type: number
+          nullable: true
+          description: Combined wind+swell angle offset from the shoreline direction (0° = perfectly parallel). Null if shoreline could not be detected.
+        shorelineAlignmentLabel:
+          type: string
+          nullable: true
+          description: Human label for shoreline alignment e.g. "Perfect", "Excellent", "Good", "Fair", "Poor", "Offshore". Null if shoreline not detected.
         summary:
           type: string
           description: A short paragraph describing the conditions
@@ -211,6 +219,8 @@ components:
         - swellDirection
         - swellDirectionLabel
         - alignmentAngle
+        - shorelineAlignmentAngle
+        - shorelineAlignmentLabel
         - summary
         - conditionLabel
     WeatherForecast:
