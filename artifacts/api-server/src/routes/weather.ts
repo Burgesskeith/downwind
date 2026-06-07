@@ -21,52 +21,61 @@ function angleDiff(a: number, b: number): number {
  * perpendicular to the primary ocean-facing direction.
  */
 async function detectShorelineDirection(lat: number, lon: number): Promise<number | undefined> {
-  const offset = 0.12; // ~13km
+  // Use 0.5° (~55 km) probes with the elevation API.
+  // The marine API covers harbours, inlets and rivers so it can't reliably
+  // distinguish open ocean from enclosed water. Elevation works much better:
+  // clearly inland terrain is > 5 m; open ocean and beach are ≤ 5 m.
+  const offset = 0.5;
   const probes = [
-    { deg: 0,   dlat:  offset, dlon:  0 },
+    { deg: 0,   dlat:  offset, dlon:  0      },
     { deg: 45,  dlat:  offset, dlon:  offset },
     { deg: 90,  dlat:  0,      dlon:  offset },
     { deg: 135, dlat: -offset, dlon:  offset },
-    { deg: 180, dlat: -offset, dlon:  0 },
+    { deg: 180, dlat: -offset, dlon:  0      },
     { deg: 225, dlat: -offset, dlon: -offset },
     { deg: 270, dlat:  0,      dlon: -offset },
     { deg: 315, dlat:  offset, dlon: -offset },
   ];
 
-  const results = await Promise.allSettled(
-    probes.map(async (p) => {
-      const url = new URL("https://marine-api.open-meteo.com/v1/marine");
-      url.searchParams.set("latitude", String(lat + p.dlat));
-      url.searchParams.set("longitude", String(lon + p.dlon));
-      url.searchParams.set("daily", "wave_height_max");
-      url.searchParams.set("forecast_days", "1");
-      const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(5000) });
-      const data = await resp.json() as { error?: string; daily?: { wave_height_max: (number | null)[] } };
-      const isOcean = resp.ok && !data.error && Array.isArray(data.daily?.wave_height_max) && data.daily!.wave_height_max.length > 0;
-      return { deg: p.deg, isOcean };
-    })
-  );
+  // Batch all 8 probes in a single elevation API call
+  const lats = probes.map(p => (lat + p.dlat).toFixed(4)).join(",");
+  const lons = probes.map(p => (lon + p.dlon).toFixed(4)).join(",");
+  let elevations: number[];
+  try {
+    const url = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    const data = await resp.json() as { elevation?: (number | null)[] };
+    if (!resp.ok || !Array.isArray(data.elevation)) return undefined;
+    elevations = data.elevation.map(v => v ?? 0);
+  } catch {
+    return undefined;
+  }
 
+  // Directions where elevation ≤ 5 m are treated as ocean / water
+  const LAND_THRESHOLD_M = 5;
   const oceanDirs: number[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled" && r.value.isOcean) {
-      oceanDirs.push(r.value.deg);
-    }
+  for (let i = 0; i < probes.length; i++) {
+    if (elevations[i] <= LAND_THRESHOLD_M) oceanDirs.push(probes[i].deg);
   }
 
   if (oceanDirs.length === 0) return undefined;
 
-  // Average the ocean-facing vectors
-  let x = 0;
-  let y = 0;
+  // Average the ocean-facing unit vectors
+  let x = 0, y = 0;
   for (const deg of oceanDirs) {
     const rad = (deg * Math.PI) / 180;
     x += Math.cos(rad);
     y += Math.sin(rad);
   }
+
+  // If vectors nearly cancel (e.g. surrounded by flat coastal plains in every
+  // direction), the result would be meaningless — bail out.
+  const magnitude = Math.sqrt(x * x + y * y);
+  if (magnitude / oceanDirs.length < 0.35) return undefined;
+
   const avgOceanDeg = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 
-  // Shoreline runs perpendicular to the primary ocean direction
+  // Shoreline runs perpendicular to the primary ocean-facing direction
   return (avgOceanDeg + 90) % 360;
 }
 
