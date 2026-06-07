@@ -177,8 +177,8 @@ function scorePaddlingDay(params: {
     const swellDiff2 = angleDiff(swellDirection, (shorelineDirection + 180) % 360);
     swellShoreAngle = Math.min(swellDiff1, swellDiff2);
 
-    // Combined: swell drives the runner quality more than wind direction alone
-    combinedShoreAngle = Math.round(shorelineAngle * 0.45 + swellShoreAngle * 0.55);
+    // Combined angle stored for reference but scoring uses wind-only
+    combinedShoreAngle = Math.round(shorelineAngle);
 
     // Offshore = wind roughly perpendicular to shore (blowing away from coast)
     const offshoreAngle = Math.min(
@@ -190,16 +190,16 @@ function scorePaddlingDay(params: {
     if (isOffshore) {
       shorelineBonus = -1.0;
       shorelineAlignmentLabel = "Offshore";
-    } else if (combinedShoreAngle <= 15) {
+    } else if (shorelineAngle <= 15) {
       shorelineBonus = 1.0;
       shorelineAlignmentLabel = "Perfect";
-    } else if (combinedShoreAngle <= 30) {
+    } else if (shorelineAngle <= 30) {
       shorelineBonus = 0.75;
       shorelineAlignmentLabel = "Excellent";
-    } else if (combinedShoreAngle <= 50) {
+    } else if (shorelineAngle <= 50) {
       shorelineBonus = 0.4;
       shorelineAlignmentLabel = "Good";
-    } else if (combinedShoreAngle <= 70) {
+    } else if (shorelineAngle <= 70) {
       shorelineBonus = 0.1;
       shorelineAlignmentLabel = "Fair";
     } else {
