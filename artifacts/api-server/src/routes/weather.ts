@@ -1,5 +1,14 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { GetWeatherForecastQueryParams, GetWeatherForecastResponse, GeocodeLocationQueryParams, GeocodeLocationResponse } from "@workspace/api-zod";
+import { createCache, MS } from "../lib/cache";
+
+// ─── Server-side caches ────────────────────────────────────────────────────
+// Shoreline direction is geographic — coastlines don't change. Cache 30 days.
+const shorelineCache = createCache<number | undefined>();
+// Full forecast: 15-min TTL matches frontend React Query stale time.
+const forecastCache = createCache<object>();
+// Geocode: place names don't move. 1-hour TTL.
+const geocodeCache = createCache<object>();
 
 const router: IRouter = Router();
 
@@ -378,6 +387,19 @@ router.get("/forecast", async (req: Request, res: Response) => {
   // Use supplied paddling direction, or auto-detect from coastline
   let shorelineDirection: number | undefined = parseResult.data.paddlingDirection;
 
+  // Cache key for forecast: rounded coords (2dp ≈ 1km) + skill + today's date
+  // Including date ensures the cache naturally expires at midnight.
+  const today = new Date().toISOString().slice(0, 10);
+  const latR = Math.round(lat * 100) / 100;
+  const lonR = Math.round(lon * 100) / 100;
+  const forecastKey = `${latR},${lonR},${skill},${today}`;
+  const cached = forecastCache.get(forecastKey);
+  if (cached) {
+    res.set("Cache-Control", "public, max-age=900"); // 15 min
+    res.json(cached);
+    return;
+  }
+
   try {
     const url = new URL("https://marine-api.open-meteo.com/v1/marine");
     url.searchParams.set("latitude", String(lat));
@@ -399,11 +421,24 @@ router.get("/forecast", async (req: Request, res: Response) => {
     windUrl.searchParams.set("timezone", "auto");
     windUrl.searchParams.set("forecast_days", "7");
 
+    // Shoreline cache: rounded to 1dp (≈11 km) — fine for coastal direction
+    const shoreKey = `${Math.round(lat * 10) / 10},${Math.round(lon * 10) / 10}`;
+    const cachedShoreline = shorelineCache.get(shoreKey);
+    const shorelinePromise: Promise<number | undefined> =
+      shorelineDirection !== undefined
+        ? Promise.resolve(undefined)
+        : cachedShoreline !== undefined
+          ? Promise.resolve(cachedShoreline)
+          : detectShorelineDirection(lat, lon).then(result => {
+              shorelineCache.set(shoreKey, result, 30 * MS.DAY);
+              return result;
+            });
+
     // Run marine, wind, and shoreline detection in parallel
     const [marineResp, windResp, detectedShoreline] = await Promise.all([
       fetch(url.toString()),
       fetch(windUrl.toString()),
-      shorelineDirection === undefined ? detectShorelineDirection(lat, lon) : Promise.resolve(undefined),
+      shorelinePromise,
     ]);
 
     if (shorelineDirection === undefined && detectedShoreline !== undefined) {
@@ -485,6 +520,8 @@ router.get("/forecast", async (req: Request, res: Response) => {
       days,
     });
 
+    forecastCache.set(forecastKey, forecast, 15 * MS.MINUTE);
+    res.set("Cache-Control", "public, max-age=900"); // 15 min
     res.json(forecast);
   } catch (err) {
     req.log.error({ err }, "Error fetching weather forecast");
@@ -503,6 +540,14 @@ router.get("/geocode", async (req: Request, res: Response) => {
   }
 
   const { query } = parseResult.data;
+
+  const geocodeKey = query.toLowerCase().trim();
+  const cachedGeocode = geocodeCache.get(geocodeKey);
+  if (cachedGeocode) {
+    res.set("Cache-Control", "public, max-age=3600"); // 1 hour
+    res.json(cachedGeocode);
+    return;
+  }
 
   try {
     const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
@@ -537,6 +582,8 @@ router.get("/geocode", async (req: Request, res: Response) => {
     }));
 
     const geocodeResponse = GeocodeLocationResponse.parse({ results });
+    geocodeCache.set(geocodeKey, geocodeResponse, MS.HOUR);
+    res.set("Cache-Control", "public, max-age=3600"); // 1 hour
     res.json(geocodeResponse);
   } catch (err) {
     req.log.error({ err }, "Error geocoding location");
