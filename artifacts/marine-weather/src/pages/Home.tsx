@@ -54,7 +54,7 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative z-20 pt-24 pb-32 px-4 sm:px-6 lg:px-8">
+      <section className="relative z-20 pt-10 pb-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
