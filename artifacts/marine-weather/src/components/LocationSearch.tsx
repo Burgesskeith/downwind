@@ -54,7 +54,7 @@ export function LocationSearch({ onSelect, selectedName }: LocationSearchProps) 
         <input
           type="text"
           className={cn(
-            "block w-full pl-12 pr-12 py-4 bg-slate-900/50 backdrop-blur-md",
+            "block w-full pl-12 pr-12 py-4 bg-slate-900 backdrop-blur-md",
             "border border-white/20 rounded-2xl",
             "text-white placeholder-white/60 caret-white",
             "focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/50",

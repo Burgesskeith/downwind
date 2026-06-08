@@ -40,9 +40,9 @@ export function SkillSelector({ value, onChange }: SkillSelectorProps) {
         onClick={() => setIsOpen((o) => !o)}
         className={cn(
           "inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl",
-          "bg-slate-900/50 backdrop-blur-md border border-white/20",
+          "bg-slate-900 backdrop-blur-md border border-white/20",
           "text-white text-sm font-semibold",
-          "hover:bg-slate-900/60 hover:border-primary/40 transition-all",
+          "hover:bg-slate-800 hover:border-primary/40 transition-all",
           "shadow-[0_4px_16px_rgb(0,0,0,0.15)]"
         )}
         aria-haspopup="listbox"
