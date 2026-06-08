@@ -16,7 +16,5 @@ export * from "./geocodeResult";
 export * from "./getWeatherForecastParams";
 export * from "./getWeatherForecastSkill";
 export * from "./healthStatus";
-export * from "./requestUploadUrlBody";
-export * from "./requestUploadUrlResponse";
 export * from "./requestUploadUrlResponseMetadata";
 export * from "./weatherForecast";

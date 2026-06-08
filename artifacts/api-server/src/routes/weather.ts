@@ -129,7 +129,7 @@ function scorePaddlingDay(params: {
   swellDirection: number;  // degrees
   shorelineDirection?: number;
   skill: SkillLevel;
-}): { score: number; summary: string; conditionLabel: string; alignmentAngle: number } {
+}): { score: number; summary: string; conditionLabel: string; alignmentAngle: number; shorelineAlignmentAngle: number | null; shorelineAlignmentLabel: string | null } {
   const { windSpeed, windDirection, swellHeight, swellPeriod, swellDirection, shorelineDirection, skill } = params;
   const profile = SKILL_PROFILES[skill];
 

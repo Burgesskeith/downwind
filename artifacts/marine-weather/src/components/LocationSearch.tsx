@@ -11,11 +11,14 @@ interface LocationSearchProps {
   selectedName?: string;
 }
 
-export function LocationSearch({ onSelect, selectedName }: LocationSearchProps) {
+export function LocationSearch({
+  onSelect,
+  selectedName,
+}: LocationSearchProps) {
   const [query, setQuery] = useState(selectedName || "");
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   const debouncedQuery = useDebounce(query, 400);
 
   const { data, isLoading, isError } = useGeocodeLocation(
@@ -25,13 +28,16 @@ export function LocationSearch({ onSelect, selectedName }: LocationSearchProps) 
         enabled: debouncedQuery.length > 2,
         staleTime: 1000 * 60 * 5, // 5 minutes
       },
-    }
+    },
   );
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -59,9 +65,9 @@ export function LocationSearch({ onSelect, selectedName }: LocationSearchProps) 
             "text-white placeholder-white/60 caret-white",
             "focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/50",
             "shadow-[0_8px_30px_rgb(0,0,0,0.2)]",
-            "transition-all duration-300 text-lg font-medium"
+            "transition-all duration-300 text-lg font-medium",
           )}
-          placeholder="Search for a beach or coastal town..."
+          placeholder="Beach or coastal town..."
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -92,47 +98,57 @@ export function LocationSearch({ onSelect, selectedName }: LocationSearchProps) 
           >
             {isLoading && (
               <div className="p-4 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Searching locations...
+                <Loader2 className="h-4 w-4 animate-spin" /> Searching
+                locations...
               </div>
             )}
-            
+
             {!isLoading && isError && (
               <div className="p-4 text-center text-destructive text-sm">
                 Failed to load locations. Please try again.
               </div>
             )}
 
-            {!isLoading && !isError && data?.results && data.results.length === 0 && (
-              <div className="p-4 text-center text-muted-foreground text-sm">
-                No coastal locations found for "{debouncedQuery}"
-              </div>
-            )}
+            {!isLoading &&
+              !isError &&
+              data?.results &&
+              data.results.length === 0 && (
+                <div className="p-4 text-center text-muted-foreground text-sm">
+                  No coastal locations found for "{debouncedQuery}"
+                </div>
+              )}
 
-            {!isLoading && !isError && data?.results && data.results.length > 0 && (
-              <ul className="max-h-[300px] overflow-y-auto py-2">
-                {data.results.map((loc, i) => (
-                  <motion.li
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    key={`${loc.lat}-${loc.lon}-${i}`}
-                  >
-                    <button
-                      className="w-full text-left px-4 py-3 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none transition-colors flex items-start gap-3"
-                      onClick={() => handleSelect(loc)}
+            {!isLoading &&
+              !isError &&
+              data?.results &&
+              data.results.length > 0 && (
+                <ul className="max-h-[300px] overflow-y-auto py-2">
+                  {data.results.map((loc, i) => (
+                    <motion.li
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      key={`${loc.lat}-${loc.lon}-${i}`}
                     >
-                      <MapPin className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                      <div>
-                        <div className="font-semibold text-foreground">{loc.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {loc.admin1 ? `${loc.admin1}, ` : ""}{loc.country}
+                      <button
+                        className="w-full text-left px-4 py-3 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none transition-colors flex items-start gap-3"
+                        onClick={() => handleSelect(loc)}
+                      >
+                        <MapPin className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        <div>
+                          <div className="font-semibold text-foreground">
+                            {loc.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {loc.admin1 ? `${loc.admin1}, ` : ""}
+                            {loc.country}
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  </motion.li>
-                ))}
-              </ul>
-            )}
+                      </button>
+                    </motion.li>
+                  ))}
+                </ul>
+              )}
           </motion.div>
         )}
       </AnimatePresence>
