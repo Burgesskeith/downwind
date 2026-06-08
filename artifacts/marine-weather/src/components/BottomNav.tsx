@@ -24,7 +24,7 @@ export function BottomNav() {
               href={href}
               className={cn(
                 "flex flex-col items-center gap-1 text-xs font-medium transition-colors px-4 py-1",
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground dark:hover:text-white"
               )}
             >
               <Icon className={cn("w-5 h-5", active && "stroke-[2.5]")} />
@@ -37,7 +37,7 @@ export function BottomNav() {
         <button
           onClick={toggle}
           aria-label="Toggle dark mode"
-          className="flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-1"
+          className="flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors px-4 py-1"
         >
           {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           {theme === "dark" ? "Light" : "Dark"}
