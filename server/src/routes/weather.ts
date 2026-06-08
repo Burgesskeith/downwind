@@ -434,10 +434,12 @@ router.get("/forecast", async (req: Request, res: Response) => {
               return result;
             });
 
+    const fetchTimeout = { signal: AbortSignal.timeout(10_000) };
+
     // Run marine, wind, and shoreline detection in parallel
     const [marineResp, windResp, detectedShoreline] = await Promise.all([
-      fetch(url.toString()),
-      fetch(windUrl.toString()),
+      fetch(url.toString(), fetchTimeout),
+      fetch(windUrl.toString(), fetchTimeout),
       shorelinePromise,
     ]);
 
@@ -456,24 +458,26 @@ router.get("/forecast", async (req: Request, res: Response) => {
       return;
     }
 
-    const marineData = await marineResp.json() as {
-      daily: {
-        time: string[];
-        swell_wave_height_max: (number | null)[];
-        swell_wave_period_max: (number | null)[];
-        swell_wave_direction_dominant: (number | null)[];
-        wave_height_max: (number | null)[];
-        wave_period_max: (number | null)[];
-        wave_direction_dominant: (number | null)[];
-      };
-    };
-    const windData = await windResp.json() as {
-      daily: {
-        time: string[];
-        wind_speed_10m_max: (number | null)[];
-        wind_direction_10m_dominant: (number | null)[];
-      };
-    };
+    const [marineData, windData] = await Promise.all([
+      marineResp.json() as Promise<{
+        daily: {
+          time: string[];
+          swell_wave_height_max: (number | null)[];
+          swell_wave_period_max: (number | null)[];
+          swell_wave_direction_dominant: (number | null)[];
+          wave_height_max: (number | null)[];
+          wave_period_max: (number | null)[];
+          wave_direction_dominant: (number | null)[];
+        };
+      }>,
+      windResp.json() as Promise<{
+        daily: {
+          time: string[];
+          wind_speed_10m_max: (number | null)[];
+          wind_direction_10m_dominant: (number | null)[];
+        };
+      }>,
+    ]);
 
     const dates = marineData.daily.time;
 
@@ -556,7 +560,7 @@ router.get("/geocode", async (req: Request, res: Response) => {
     url.searchParams.set("language", "en");
     url.searchParams.set("format", "json");
 
-    const resp = await fetch(url.toString());
+    const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(8_000) });
     if (!resp.ok) {
       req.log.error({ status: resp.status }, "Geocoding API error");
       res.status(500).json({ error: "Failed to geocode location" });

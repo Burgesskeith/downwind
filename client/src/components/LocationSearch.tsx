@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { Search, MapPin, Loader2, Navigation } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGeocodeLocation } from "@workspace/api-client-react";
@@ -11,7 +11,7 @@ interface LocationSearchProps {
   selectedName?: string;
 }
 
-export function LocationSearch({
+export const LocationSearch = memo(function LocationSearch({
   onSelect,
   selectedName,
 }: LocationSearchProps) {
@@ -45,11 +45,14 @@ export function LocationSearch({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (loc: GeocodeLocation) => {
-    setQuery(loc.name);
-    setIsOpen(false);
-    onSelect(loc);
-  };
+  const handleSelect = useCallback(
+    (loc: GeocodeLocation) => {
+      setQuery(loc.name);
+      setIsOpen(false);
+      onSelect(loc);
+    },
+    [onSelect],
+  );
 
   return (
     <div className="relative w-full max-w-2xl mx-auto" ref={containerRef}>
@@ -123,13 +126,8 @@ export function LocationSearch({
               data?.results &&
               data.results.length > 0 && (
                 <ul className="max-h-[300px] overflow-y-auto py-2">
-                  {data.results.map((loc, i) => (
-                    <motion.li
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      key={`${loc.lat}-${loc.lon}-${i}`}
-                    >
+                  {data.results.map((loc) => (
+                    <li key={`${loc.lat}-${loc.lon}-${loc.name}`}>
                       <button
                         className="w-full text-left px-4 py-3 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none transition-colors flex items-start gap-3"
                         onClick={() => handleSelect(loc)}
@@ -145,7 +143,7 @@ export function LocationSearch({
                           </div>
                         </div>
                       </button>
-                    </motion.li>
+                    </li>
                   ))}
                 </ul>
               )}
@@ -154,4 +152,4 @@ export function LocationSearch({
       </AnimatePresence>
     </div>
   );
-}
+});

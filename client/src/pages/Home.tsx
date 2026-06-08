@@ -1,16 +1,16 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { MapPin, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetWeatherForecast } from "@workspace/api-client-react";
 import { LocationSearch } from "@/components/LocationSearch";
 import { ForecastCard } from "@/components/ForecastCard";
-import { AdCard } from "@/components/AdCard";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingGrid";
 import { SkillSelector, type SkillLevel } from "@/components/SkillSelector";
 import type { GeocodeLocation } from "@workspace/api-client-react";
 
 const SKILL_STORAGE_KEY = "paddle-planner-skill";
+const LOCATION_STORAGE_KEY = "paddle-planner-location";
 
 function loadSkill(): SkillLevel {
   if (typeof window === "undefined") return "intermediate";
@@ -19,41 +19,69 @@ function loadSkill(): SkillLevel {
   return "intermediate";
 }
 
+function loadSavedLocation(): GeocodeLocation | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LOCATION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as GeocodeLocation;
+    if (
+      typeof parsed.name === "string" &&
+      typeof parsed.lat === "number" &&
+      typeof parsed.lon === "number"
+    ) {
+      return parsed;
+    }
+  } catch {
+    // Ignore corrupt saved location
+  }
+  return null;
+}
+
 export default function Home() {
-  const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(loadSavedLocation);
   const [skill, setSkill] = useState<SkillLevel>(loadSkill);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(SKILL_STORAGE_KEY, skill);
-    }
+    window.localStorage.setItem(SKILL_STORAGE_KEY, skill);
   }, [skill]);
 
+  const handleLocationSelect = useCallback((location: GeocodeLocation) => {
+    setSelectedLocation(location);
+    window.localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(location));
+  }, []);
+
+  const forecastParams = useMemo(
+    () =>
+      selectedLocation
+        ? {
+            lat: selectedLocation.lat,
+            lon: selectedLocation.lon,
+            locationName: selectedLocation.name,
+            skill,
+          }
+        : null,
+    [selectedLocation, skill],
+  );
+
   const { data: forecast, isLoading, isError, error } = useGetWeatherForecast(
-    {
-      lat: selectedLocation?.lat as number,
-      lon: selectedLocation?.lon as number,
-      locationName: selectedLocation?.name,
-      skill,
-    },
+    forecastParams ?? { lat: 0, lon: 0, skill },
     {
       query: {
-        enabled: !!selectedLocation,
+        enabled: !!forecastParams,
         staleTime: 1000 * 60 * 15,
-        retry: 1
-      }
-    }
+        retry: 1,
+      },
+    },
   );
 
   return (
     <div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
-      {/* Decorative background blurs */}
       <div className="absolute top-0 inset-x-0 h-screen pointer-events-none overflow-hidden -z-10">
         <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
         <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-accent/5 blur-[100px]" />
       </div>
 
-      {/* Hero Section */}
       <section className="relative z-20 pt-10 pb-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <motion.div
@@ -76,7 +104,7 @@ export default function Home() {
             className="w-full flex flex-col items-center gap-4"
           >
             <LocationSearch
-              onSelect={setSelectedLocation}
+              onSelect={handleLocationSelect}
               selectedName={selectedLocation?.name}
             />
             <SkillSelector value={skill} onChange={setSkill} />
@@ -84,7 +112,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Main Content Area */}
       <main className="flex-grow w-full z-10 pb-24">
         <AnimatePresence mode="wait">
           {!selectedLocation && !isLoading && (
@@ -100,8 +127,8 @@ export default function Home() {
           )}
 
           {isError && selectedLocation && (
-            <motion.div 
-              key="error" 
+            <motion.div
+              key="error"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -116,7 +143,7 @@ export default function Home() {
           )}
 
           {forecast && selectedLocation && !isLoading && !isError && (
-            <motion.div 
+            <motion.div
               key="forecast"
               className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-4"
             >
@@ -136,14 +163,9 @@ export default function Home() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {forecast.days.map((day, idx) => (
-                  <Fragment key={day.date}>
-                    <ForecastCard forecast={day} index={idx} />
-                    {idx === 0 && <AdCard />}
-                  </Fragment>
+                  <ForecastCard key={day.date} forecast={day} index={idx} />
                 ))}
               </div>
-
-
             </motion.div>
           )}
         </AnimatePresence>

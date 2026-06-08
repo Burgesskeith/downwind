@@ -37,6 +37,17 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+// Callers pass partial overrides; Orval merges queryKey and queryFn internally.
+type QueryOptionOverrides<
+  TQueryFnData,
+  TError,
+  TData = TQueryFnData,
+> = Partial<
+  Omit<UseQueryOptions<TQueryFnData, TError, TData>, "queryKey" | "queryFn">
+>;
+
+type QueryOptionsWithKey = { queryKey?: QueryKey };
+
 /**
  * Returns server health status
  * @summary Health check
@@ -62,7 +73,7 @@ export const getHealthCheckQueryOptions = <
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionOverrides<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -71,7 +82,9 @@ export const getHealthCheckQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getHealthCheckQueryKey();
+  const queryKey =
+    (queryOptions as QueryOptionsWithKey | undefined)?.queryKey ??
+    getHealthCheckQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({
     signal,
@@ -97,7 +110,7 @@ export function useHealthCheck<
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionOverrides<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -155,7 +168,7 @@ export const getGetWeatherForecastQueryOptions = <
 >(
   params: GetWeatherForecastParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionOverrides<
       Awaited<ReturnType<typeof getWeatherForecast>>,
       TError,
       TData
@@ -166,7 +179,8 @@ export const getGetWeatherForecastQueryOptions = <
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getGetWeatherForecastQueryKey(params);
+    (queryOptions as QueryOptionsWithKey | undefined)?.queryKey ??
+    getGetWeatherForecastQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getWeatherForecast>>
@@ -194,7 +208,7 @@ export function useGetWeatherForecast<
 >(
   params: GetWeatherForecastParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionOverrides<
       Awaited<ReturnType<typeof getWeatherForecast>>,
       TError,
       TData
@@ -321,7 +335,7 @@ export const getGetCurrentAdQueryOptions = <
   TData = Awaited<ReturnType<typeof getCurrentAd>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionOverrides<
     Awaited<ReturnType<typeof getCurrentAd>>,
     TError,
     TData
@@ -330,7 +344,9 @@ export const getGetCurrentAdQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetCurrentAdQueryKey();
+  const queryKey =
+    (queryOptions as QueryOptionsWithKey | undefined)?.queryKey ??
+    getGetCurrentAdQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentAd>>> = ({
     signal,
@@ -356,7 +372,7 @@ export function useGetCurrentAd<
   TData = Awaited<ReturnType<typeof getCurrentAd>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryOptionOverrides<
     Awaited<ReturnType<typeof getCurrentAd>>,
     TError,
     TData
@@ -412,7 +428,7 @@ export const getGeocodeLocationQueryOptions = <
 >(
   params: GeocodeLocationParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionOverrides<
       Awaited<ReturnType<typeof geocodeLocation>>,
       TError,
       TData
@@ -422,7 +438,9 @@ export const getGeocodeLocationQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGeocodeLocationQueryKey(params);
+  const queryKey =
+    (queryOptions as QueryOptionsWithKey | undefined)?.queryKey ??
+    getGeocodeLocationQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof geocodeLocation>>> = ({
     signal,
@@ -450,7 +468,7 @@ export function useGeocodeLocation<
 >(
   params: GeocodeLocationParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryOptionOverrides<
       Awaited<ReturnType<typeof geocodeLocation>>,
       TError,
       TData
