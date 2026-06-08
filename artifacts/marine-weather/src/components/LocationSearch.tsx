@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGeocodeLocation } from "@workspace/api-client-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
-import type { GeocodeLocation } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { GeocodeLocation } from "@workspace/api-client-react";
 
 interface LocationSearchProps {
   onSelect: (location: GeocodeLocation) => void;

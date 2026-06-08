@@ -14,6 +14,7 @@ export default function About() {
         <p className="text-muted-foreground text-lg mb-10">
           Say something about us here.
         </p>
+        <p>To be completed.</p>
       </div>
     </div>
   );

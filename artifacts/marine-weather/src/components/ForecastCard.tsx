@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { format, parseISO } from "date-fns";
 import { Wind, Waves, Compass } from "lucide-react";
 import { cn, getScoreColorClasses } from "@/lib/utils";
-import type { DayForecast } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { DayForecast } from "@workspace/api-client-react";
 
 interface ForecastCardProps {
   forecast: DayForecast;

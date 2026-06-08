@@ -8,7 +8,7 @@ import { AdCard } from "@/components/AdCard";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingGrid";
 import { SkillSelector, type SkillLevel } from "@/components/SkillSelector";
-import type { GeocodeLocation } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { GeocodeLocation } from "@workspace/api-client-react";
 
 const SKILL_STORAGE_KEY = "paddle-planner-skill";
 
