@@ -1,5 +1,4 @@
 import { useState, useEffect, Fragment } from "react";
-import { Link } from "wouter";
 import { MapPin, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetWeatherForecast } from "@workspace/api-client-react";
@@ -144,14 +143,7 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="mt-12 text-center">
-                <Link
-                  href="/advertise"
-                  className="inline-block text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
-                >
-                  Advertise on Paddle Planner →
-                </Link>
-              </div>
+
             </motion.div>
           )}
         </AnimatePresence>

@@ -3,9 +3,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/Home";
+import About from "@/pages/About";
 import Advertise from "@/pages/Advertise";
 import AdvertiseSuccess from "@/pages/AdvertiseSuccess";
 import NotFound from "@/pages/not-found";
+import { BottomNav } from "@/components/BottomNav";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,12 +20,16 @@ const queryClient = new QueryClient({
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/advertise" component={Advertise} />
-      <Route path="/advertise/success" component={AdvertiseSuccess} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/about" component={About} />
+        <Route path="/advertise" component={Advertise} />
+        <Route path="/advertise/success" component={AdvertiseSuccess} />
+        <Route component={NotFound} />
+      </Switch>
+      <BottomNav />
+    </>
   );
 }
 
