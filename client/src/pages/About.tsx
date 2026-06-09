@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowLeft, Search, Award, Sun, Calendar, ExternalLink } from "lucide-react";
+import { ArrowLeft, Search, Award, Sun, Calendar, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const HOW_IT_WORKS_STEPS = [
@@ -29,28 +29,18 @@ const HOW_IT_WORKS_STEPS = [
   },
 ] as const;
 
-const websiteUrl = import.meta.env.VITE_WEBSITE_URL as string | undefined;
-
-function isWebsiteConfigured(url: string | undefined): url is string {
-  return Boolean(url && url !== "https://example.com" && url.startsWith("http"));
-}
-
-export function WebsiteLink() {
-  if (!isWebsiteConfigured(websiteUrl)) {
-    return null;
-  }
-
+export function ContactLink() {
   return (
     <section className="mt-10 border border-border rounded-3xl bg-card p-6 shadow-lg shadow-black/5 text-center">
       <h2 className="font-display text-2xl font-bold text-foreground mb-2">Get in touch</h2>
       <p className="text-muted-foreground text-sm mb-6">
-        Have a suggestion or want to know more? Visit my website.
+        Have a suggestion or want to report a problem? Send me a message.
       </p>
       <Button asChild className="w-full sm:w-auto">
-        <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
-          Visit website
-          <ExternalLink className="w-4 h-4" />
-        </a>
+        <Link href="/contact">
+          Send feedback
+          <Mail className="w-4 h-4" />
+        </Link>
       </Button>
     </section>
   );
@@ -130,7 +120,7 @@ export default function About() {
           </p>
         </section>
 
-        <WebsiteLink />
+        <ContactLink />
       </div>
     </div>
   );

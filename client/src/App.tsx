@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 
 const Home             = lazy(() => import("@/pages/Home"));
 const About            = lazy(() => import("@/pages/About"));
+const Contact          = lazy(() => import("@/pages/Contact"));
 const Advertise      = lazy(() => import("@/pages/Advertise"));
 const AdvertiseSuccess = lazy(() => import("@/pages/AdvertiseSuccess"));
 const NotFound       = lazy(() => import("@/pages/not-found"));
@@ -31,6 +32,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/about" component={About} />
+          <Route path="/contact" component={Contact} />
           <Route path="/advertise" component={Advertise} />
           <Route path="/advertise/success" component={AdvertiseSuccess} />
           <Route component={NotFound} />

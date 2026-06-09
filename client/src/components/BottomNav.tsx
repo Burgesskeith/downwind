@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { Home, Info, Sun, Moon } from "lucide-react";
+import { Home, Info, Mail, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
 
 const links = [
-  { href: "/",      label: "Home",  icon: Home },
-  { href: "/about", label: "About", icon: Info },
+  { href: "/",        label: "Home",    icon: Home },
+  { href: "/about",   label: "About",   icon: Info },
+  { href: "/contact", label: "Contact", icon: Mail },
 ];
 
 export function BottomNav() {
