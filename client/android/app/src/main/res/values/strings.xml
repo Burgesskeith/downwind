@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Downwind Paddling</string>
+    <string name="title_activity_main">Downwind Paddling</string>
+    <string name="package_name">com.downwind.paddling</string>
+    <string name="custom_url_scheme">com.downwind.paddling</string>
+</resources>

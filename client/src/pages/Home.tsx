@@ -1,30 +1,45 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { MapPin, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useGetWeatherForecast } from "@workspace/api-client-react";
+import {
+  getGetWeatherForecastQueryKey,
+  useGetWeatherForecast,
+} from "@workspace/api-client-react";
 import { LocationSearch } from "@/components/LocationSearch";
 import { ForecastCard } from "@/components/ForecastCard";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingGrid";
 import { SkillSelector, type SkillLevel } from "@/components/SkillSelector";
+import { TimeOfDaySelector } from "@/components/TimeOfDaySelector";
 import type { GeocodeLocation } from "@workspace/api-client-react";
+import { PREFERENCE_KEYS } from "@/lib/preferenceKeys";
+import { getPreference, setPreference } from "@/lib/preferences";
+import {
+  PADDLE_TIME_SLOTS,
+  type PaddleTimeSlot,
+} from "@/lib/timeSlots";
 
-const SKILL_STORAGE_KEY = "paddle-planner-skill";
-const LOCATION_STORAGE_KEY = "paddle-planner-location";
+// Busts React Query cache when forecast shape changes (e.g. daily → hourly timeSlots).
+const FORECAST_QUERY_VERSION = "v2-hourly";
 
-function loadSkill(): SkillLevel {
-  if (typeof window === "undefined") return "intermediate";
-  const saved = window.localStorage.getItem(SKILL_STORAGE_KEY);
-  if (saved === "beginner" || saved === "intermediate" || saved === "advanced") return saved;
+function parseSkill(value: string | null): SkillLevel {
+  if (value === "beginner" || value === "intermediate" || value === "advanced") {
+    return value;
+  }
   return "intermediate";
 }
 
-function loadSavedLocation(): GeocodeLocation | null {
-  if (typeof window === "undefined") return null;
+function parseTimeSlot(value: string | null): PaddleTimeSlot {
+  if (PADDLE_TIME_SLOTS.some((slot) => slot.value === value)) {
+    return value as PaddleTimeSlot;
+  }
+  return "morning";
+}
+
+function parseSavedLocation(value: string | null): GeocodeLocation | null {
+  if (!value) return null;
   try {
-    const raw = window.localStorage.getItem(LOCATION_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as GeocodeLocation;
+    const parsed = JSON.parse(value) as GeocodeLocation;
     if (
       typeof parsed.name === "string" &&
       typeof parsed.lat === "number" &&
@@ -39,16 +54,47 @@ function loadSavedLocation(): GeocodeLocation | null {
 }
 
 export default function Home() {
-  const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(loadSavedLocation);
-  const [skill, setSkill] = useState<SkillLevel>(loadSkill);
+  const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(null);
+  const [skill, setSkill] = useState<SkillLevel>("intermediate");
+  const [timeSlot, setTimeSlot] = useState<PaddleTimeSlot>("morning");
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   useEffect(() => {
-    window.localStorage.setItem(SKILL_STORAGE_KEY, skill);
-  }, [skill]);
+    let cancelled = false;
+
+    (async () => {
+      const [savedSkill, savedTimeSlot, savedLocation] = await Promise.all([
+        getPreference(PREFERENCE_KEYS.skill),
+        getPreference(PREFERENCE_KEYS.timeSlot),
+        getPreference(PREFERENCE_KEYS.location),
+      ]);
+
+      if (cancelled) return;
+
+      setSkill(parseSkill(savedSkill));
+      setTimeSlot(parseTimeSlot(savedTimeSlot));
+      setSelectedLocation(parseSavedLocation(savedLocation));
+      setPrefsLoaded(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    void setPreference(PREFERENCE_KEYS.skill, skill);
+  }, [skill, prefsLoaded]);
+
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    void setPreference(PREFERENCE_KEYS.timeSlot, timeSlot);
+  }, [timeSlot, prefsLoaded]);
 
   const handleLocationSelect = useCallback((location: GeocodeLocation) => {
     setSelectedLocation(location);
-    window.localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(location));
+    void setPreference(PREFERENCE_KEYS.location, JSON.stringify(location));
   }, []);
 
   const forecastParams = useMemo(
@@ -68,9 +114,12 @@ export default function Home() {
     forecastParams ?? { lat: 0, lon: 0, skill },
     {
       query: {
-        enabled: !!forecastParams,
+        enabled: prefsLoaded && !!forecastParams,
         staleTime: 1000 * 60 * 15,
         retry: 1,
+        queryKey: forecastParams
+          ? [...getGetWeatherForecastQueryKey(forecastParams), FORECAST_QUERY_VERSION]
+          : undefined,
       },
     },
   );
@@ -107,26 +156,35 @@ export default function Home() {
               onSelect={handleLocationSelect}
               selectedName={selectedLocation?.name}
             />
-            <SkillSelector value={skill} onChange={setSkill} />
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <SkillSelector value={skill} onChange={setSkill} />
+              <TimeOfDaySelector value={timeSlot} onChange={setTimeSlot} />
+            </div>
           </motion.div>
         </div>
       </section>
 
       <main className="flex-grow w-full z-10 pb-24">
         <AnimatePresence mode="wait">
-          {!selectedLocation && !isLoading && (
+          {!prefsLoaded && (
+            <motion.div key="prefs-loading" exit={{ opacity: 0 }}>
+              <LoadingGrid />
+            </motion.div>
+          )}
+
+          {prefsLoaded && !selectedLocation && !isLoading && (
             <motion.div key="empty" exit={{ opacity: 0, y: -20 }}>
               <EmptyState />
             </motion.div>
           )}
 
-          {isLoading && (
+          {prefsLoaded && isLoading && (
             <motion.div key="loading" exit={{ opacity: 0 }}>
               <LoadingGrid />
             </motion.div>
           )}
 
-          {isError && selectedLocation && (
+          {prefsLoaded && isError && selectedLocation && (
             <motion.div
               key="error"
               initial={{ opacity: 0, y: 20 }}
@@ -142,7 +200,7 @@ export default function Home() {
             </motion.div>
           )}
 
-          {forecast && selectedLocation && !isLoading && !isError && (
+          {prefsLoaded && forecast && selectedLocation && !isLoading && !isError && (
             <motion.div
               key="forecast"
               className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-4"
@@ -163,7 +221,12 @@ export default function Home() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {forecast.days.map((day, idx) => (
-                  <ForecastCard key={day.date} forecast={day} index={idx} />
+                  <ForecastCard
+                    key={day.date}
+                    forecast={day}
+                    index={idx}
+                    preferredTimeSlot={timeSlot}
+                  />
                 ))}
               </div>
             </motion.div>

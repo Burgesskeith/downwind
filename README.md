@@ -4,7 +4,7 @@ Marine Weather Paddle Planner — a full-stack app that scores 7-day downwind pa
 
 ## Stack
 
-- **Frontend**: React 19, Vite, Tailwind CSS v4, shadcn/ui
+- **Frontend**: React 19, Vite, Tailwind CSS v4, shadcn/ui, Capacitor (iOS/Android)
 - **Backend**: Node.js, Express 5 (weather API only — no database for MVP)
 - **Package manager**: pnpm workspaces
 
@@ -61,8 +61,30 @@ The Vite dev server proxies `/api` requests to the Express server.
 |----------|----------|-------------|
 | `PORT` | No | API server port (default `3001`) |
 | `API_URL` | No | API origin for Vite proxy (default `http://localhost:3001`) |
+| `VITE_API_URL` | No | API origin for Capacitor native builds (default `http://localhost:3001`) |
 | `CLIENT_PORT` | No | Vite dev server port (default `5173`) |
 | `LOG_LEVEL` | No | Server log level (default `info`) |
+
+## Native apps (Capacitor)
+
+User preferences (skill, time slot, location, theme) are stored with **Capacitor Preferences** — native key/value storage on device, with the same API on web.
+
+1. Build and sync the web bundle into native projects:
+
+   ```bash
+   pnpm build:native
+   ```
+
+2. Open a platform:
+
+   ```bash
+   pnpm cap:ios      # requires Xcode
+   pnpm cap:android  # requires Android Studio
+   ```
+
+3. Run the API server separately (`pnpm dev` or deploy it). Set `VITE_API_URL` in `.env` to a reachable origin before `pnpm build:native` (e.g. `http://localhost:3001` for the iOS Simulator; Android emulator often uses `http://10.0.2.2:3001`).
+
+After frontend changes, run `pnpm build:native` again before rebuilding in Xcode or Android Studio.
 
 ## Scripts
 
@@ -70,6 +92,9 @@ The Vite dev server proxies `/api` requests to the Express server.
 |---------|-------------|
 | `pnpm dev` | Run client and server in parallel |
 | `pnpm build` | Typecheck and build client + server |
+| `pnpm build:native` | Build client and sync to Capacitor iOS/Android |
+| `pnpm cap:ios` | Open the iOS project in Xcode |
+| `pnpm cap:android` | Open the Android project in Android Studio |
 | `pnpm typecheck` | Run TypeScript checks across the monorepo |
 
 ## Features
@@ -77,7 +102,7 @@ The Vite dev server proxies `/api` requests to the Express server.
 - Location search via Open-Meteo geocoding
 - 7-day forecast cards with paddling condition scores
 - Skill level selector (Beginner / Intermediate / Advanced)
-- Last location and skill level saved in browser localStorage
+- Last location, skill level, time-of-day, and theme saved via Capacitor Preferences
 
 ## Roadmap
 

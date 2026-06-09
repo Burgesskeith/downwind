@@ -50,7 +50,9 @@ export const GetWeatherForecastResponse = zod.object({
       dayLabel: zod
         .string()
         .describe('Human-readable day label e.g. \"Monday\"'),
-      score: zod.number().describe("Paddling score from 1 to 10"),
+      score: zod
+        .number()
+        .describe("Paddling score from 1 to 10 (default slot — morning)"),
       windSpeed: zod.number().describe("Wind speed in km\/h"),
       windDirection: zod
         .number()
@@ -87,6 +89,38 @@ export const GetWeatherForecastResponse = zod.object({
       conditionLabel: zod
         .string()
         .describe('Quick label e.g. \"Epic\", \"Good\", \"Fair\", \"Poor\"'),
+      timeSlots: zod
+        .array(
+          zod.object({
+            slot: zod
+              .enum(["early-morning", "morning", "midday", "late-afternoon"])
+              .describe("Time-of-day window identifier"),
+            label: zod
+              .string()
+              .describe('Human-readable window e.g. \"5am – 8am\"'),
+            sampleHour: zod
+              .number()
+              .describe(
+                "Local hour used for the forecast sample (7, 10, 13, or 16)",
+              ),
+            score: zod.number(),
+            windSpeed: zod.number(),
+            windDirection: zod.number(),
+            windDirectionLabel: zod.string(),
+            swellHeight: zod.number(),
+            swellPeriod: zod.number(),
+            swellDirection: zod.number(),
+            swellDirectionLabel: zod.string(),
+            alignmentAngle: zod.number(),
+            shorelineAlignmentAngle: zod.number().nullable(),
+            shorelineAlignmentLabel: zod.string().nullable(),
+            summary: zod.string(),
+            conditionLabel: zod.string(),
+          }),
+        )
+        .describe(
+          "Scored conditions at four time-of-day windows (sampled at 7am, 10am, 1pm, 4pm local)",
+        ),
     }),
   ),
 });

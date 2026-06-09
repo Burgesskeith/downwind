@@ -168,7 +168,7 @@ components:
           description: Human-readable day label e.g. "Monday"
         score:
           type: number
-          description: Paddling score from 1 to 10
+          description: Paddling score from 1 to 10 (default slot — morning)
         windSpeed:
           type: number
           description: Wind speed in km/h
@@ -207,9 +207,73 @@ components:
         conditionLabel:
           type: string
           description: Quick label e.g. "Epic", "Good", "Fair", "Poor"
+        timeSlots:
+          type: array
+          description: Scored conditions at four time-of-day windows (sampled at 7am, 10am, 1pm, 4pm local)
+          items:
+            $ref: "#/components/schemas/TimeSlotForecast"
       required:
         - date
         - dayLabel
+        - score
+        - windSpeed
+        - windDirection
+        - windDirectionLabel
+        - swellHeight
+        - swellPeriod
+        - swellDirection
+        - swellDirectionLabel
+        - alignmentAngle
+        - shorelineAlignmentAngle
+        - shorelineAlignmentLabel
+        - summary
+        - conditionLabel
+        - timeSlots
+    TimeSlotForecast:
+      type: object
+      properties:
+        slot:
+          type: string
+          enum: [early-morning, morning, midday, late-afternoon]
+          description: Time-of-day window identifier
+        label:
+          type: string
+          description: Human-readable window e.g. "5am – 8am"
+        sampleHour:
+          type: integer
+          description: Local hour used for the forecast sample (7, 10, 13, or 16)
+        score:
+          type: number
+        windSpeed:
+          type: number
+        windDirection:
+          type: number
+        windDirectionLabel:
+          type: string
+        swellHeight:
+          type: number
+        swellPeriod:
+          type: number
+        swellDirection:
+          type: number
+        swellDirectionLabel:
+          type: string
+        alignmentAngle:
+          type: number
+        shorelineAlignmentAngle:
+          type: number
+          nullable: true
+        shorelineAlignmentLabel:
+          type: string
+          nullable: true
+        summary:
+          type: string
+        conditionLabel:
+          type: string
+      required:
+        - slot
+        - label
+        - sampleHour
         - score
         - windSpeed
         - windDirection

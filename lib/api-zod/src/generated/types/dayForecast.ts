@@ -5,13 +5,14 @@
  * Marine Weather Paddle Planner API
  * OpenAPI spec version: 0.1.0
  */
+import type { TimeSlotForecast } from "./timeSlotForecast";
 
 export interface DayForecast {
   /** ISO date string (YYYY-MM-DD) */
   date: string;
   /** Human-readable day label e.g. "Monday" */
   dayLabel: string;
-  /** Paddling score from 1 to 10 */
+  /** Paddling score from 1 to 10 (default slot — morning) */
   score: number;
   /** Wind speed in km/h */
   windSpeed: number;
@@ -37,4 +38,6 @@ export interface DayForecast {
   summary: string;
   /** Quick label e.g. "Epic", "Good", "Fair", "Poor" */
   conditionLabel: string;
+  /** Scored conditions at four time-of-day windows (sampled at 7am, 10am, 1pm, 4pm local) */
+  timeSlots: TimeSlotForecast[];
 }

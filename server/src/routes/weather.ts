@@ -1,6 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { GetWeatherForecastQueryParams, GetWeatherForecastResponse, GeocodeLocationQueryParams, GeocodeLocationResponse } from "@workspace/api-zod";
 import { createCache, MS } from "../lib/cache";
+import {
+  PADDLE_TIME_SLOTS,
+  findHourlyIndex,
+  pickHourlyValue,
+} from "../lib/paddleTimeSlots";
 
 // ─── Server-side caches ────────────────────────────────────────────────────
 // Shoreline direction is geographic — coastlines don't change. Cache 30 days.
@@ -392,7 +397,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
   const today = new Date().toISOString().slice(0, 10);
   const latR = Math.round(lat * 100) / 100;
   const lonR = Math.round(lon * 100) / 100;
-  const forecastKey = `${latR},${lonR},${skill},${today}`;
+  const forecastKey = `${latR},${lonR},${skill},${today},v2-hourly`;
   const cached = forecastCache.get(forecastKey);
   if (cached) {
     res.set("Cache-Control", "public, max-age=900"); // 15 min
@@ -401,22 +406,24 @@ router.get("/forecast", async (req: Request, res: Response) => {
   }
 
   try {
-    const url = new URL("https://marine-api.open-meteo.com/v1/marine");
-    url.searchParams.set("latitude", String(lat));
-    url.searchParams.set("longitude", String(lon));
-    url.searchParams.set("daily", [
-      "wave_height_max",
-      "wave_period_max",
-      "wave_direction_dominant",
-      "swell_wave_height_max",
-      "swell_wave_period_max",
-      "swell_wave_direction_dominant",
+    const marineUrl = new URL("https://marine-api.open-meteo.com/v1/marine");
+    marineUrl.searchParams.set("latitude", String(lat));
+    marineUrl.searchParams.set("longitude", String(lon));
+    marineUrl.searchParams.set("hourly", [
+      "swell_wave_height",
+      "swell_wave_period",
+      "swell_wave_direction",
+      "wave_height",
+      "wave_period",
+      "wave_direction",
     ].join(","));
+    marineUrl.searchParams.set("timezone", "auto");
+    marineUrl.searchParams.set("forecast_days", "7");
 
     const windUrl = new URL("https://api.open-meteo.com/v1/forecast");
     windUrl.searchParams.set("latitude", String(lat));
     windUrl.searchParams.set("longitude", String(lon));
-    windUrl.searchParams.set("daily", ["wind_speed_10m_max", "wind_direction_10m_dominant"].join(","));
+    windUrl.searchParams.set("hourly", ["wind_speed_10m", "wind_direction_10m"].join(","));
     windUrl.searchParams.set("wind_speed_unit", "kmh");
     windUrl.searchParams.set("timezone", "auto");
     windUrl.searchParams.set("forecast_days", "7");
@@ -438,7 +445,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
 
     // Run marine, wind, and shoreline detection in parallel
     const [marineResp, windResp, detectedShoreline] = await Promise.all([
-      fetch(url.toString(), fetchTimeout),
+      fetch(marineUrl.toString(), fetchTimeout),
       fetch(windUrl.toString(), fetchTimeout),
       shorelinePromise,
     ]);
@@ -460,60 +467,100 @@ router.get("/forecast", async (req: Request, res: Response) => {
 
     const [marineData, windData] = await Promise.all([
       marineResp.json() as Promise<{
-        daily: {
+        hourly: {
           time: string[];
-          swell_wave_height_max: (number | null)[];
-          swell_wave_period_max: (number | null)[];
-          swell_wave_direction_dominant: (number | null)[];
-          wave_height_max: (number | null)[];
-          wave_period_max: (number | null)[];
-          wave_direction_dominant: (number | null)[];
+          swell_wave_height: (number | null)[];
+          swell_wave_period: (number | null)[];
+          swell_wave_direction: (number | null)[];
+          wave_height: (number | null)[];
+          wave_period: (number | null)[];
+          wave_direction: (number | null)[];
         };
       }>,
       windResp.json() as Promise<{
-        daily: {
+        hourly: {
           time: string[];
-          wind_speed_10m_max: (number | null)[];
-          wind_direction_10m_dominant: (number | null)[];
+          wind_speed_10m: (number | null)[];
+          wind_direction_10m: (number | null)[];
         };
       }>,
     ]);
 
-    const dates = marineData.daily.time;
+    const dates = [...new Set(windData.hourly.time.map((t) => t.slice(0, 10)))].slice(0, 7);
 
-    const days = dates.slice(0, 7).map((date, i) => {
-      const swellHeight = marineData.daily.swell_wave_height_max[i] ?? marineData.daily.wave_height_max[i] ?? 0;
-      const swellPeriod = marineData.daily.swell_wave_period_max[i] ?? marineData.daily.wave_period_max[i] ?? 6;
-      const swellDirection = marineData.daily.swell_wave_direction_dominant[i] ?? marineData.daily.wave_direction_dominant[i] ?? 0;
-      const windSpeed = windData.daily.wind_speed_10m_max[i] ?? 0;
-      const windDirection = windData.daily.wind_direction_10m_dominant[i] ?? 0;
+    const days = dates.map((date) => {
+      const timeSlots = PADDLE_TIME_SLOTS.map(({ slot, label, sampleHour }) => {
+        const windIdx = findHourlyIndex(windData.hourly.time, date, sampleHour);
+        const marineIdx = findHourlyIndex(marineData.hourly.time, date, sampleHour);
 
-      const { score, summary, conditionLabel, alignmentAngle, shorelineAlignmentAngle, shorelineAlignmentLabel } = scorePaddlingDay({
-        windSpeed,
-        windDirection,
-        swellHeight,
-        swellPeriod,
-        swellDirection,
-        shorelineDirection,
-        skill,
+        const windSpeed = pickHourlyValue(windData.hourly.wind_speed_10m, windIdx, 0);
+        const windDirection = pickHourlyValue(windData.hourly.wind_direction_10m, windIdx, 0);
+        const swellHeight =
+          pickHourlyValue(marineData.hourly.swell_wave_height, marineIdx, 0) ||
+          pickHourlyValue(marineData.hourly.wave_height, marineIdx, 0);
+        const swellPeriod =
+          pickHourlyValue(marineData.hourly.swell_wave_period, marineIdx, 6) ||
+          pickHourlyValue(marineData.hourly.wave_period, marineIdx, 6);
+        const swellDirection =
+          pickHourlyValue(marineData.hourly.swell_wave_direction, marineIdx, 0) ||
+          pickHourlyValue(marineData.hourly.wave_direction, marineIdx, 0);
+
+        const {
+          score,
+          summary,
+          conditionLabel,
+          alignmentAngle,
+          shorelineAlignmentAngle,
+          shorelineAlignmentLabel,
+        } = scorePaddlingDay({
+          windSpeed,
+          windDirection,
+          swellHeight,
+          swellPeriod,
+          swellDirection,
+          shorelineDirection,
+          skill,
+        });
+
+        return {
+          slot,
+          label,
+          sampleHour,
+          score,
+          windSpeed: Math.round(windSpeed * 10) / 10,
+          windDirection: Math.round(windDirection),
+          windDirectionLabel: degToCompass(windDirection),
+          swellHeight: Math.round(swellHeight * 100) / 100,
+          swellPeriod: Math.round(swellPeriod * 10) / 10,
+          swellDirection: Math.round(swellDirection),
+          swellDirectionLabel: degToCompass(swellDirection),
+          alignmentAngle,
+          summary,
+          conditionLabel,
+          shorelineAlignmentAngle,
+          shorelineAlignmentLabel,
+        };
       });
+
+      const primary = timeSlots[1] ?? timeSlots[0];
 
       return {
         date,
         dayLabel: getDayLabel(date),
-        score,
-        windSpeed: Math.round(windSpeed * 10) / 10,
-        windDirection: Math.round(windDirection),
-        windDirectionLabel: degToCompass(windDirection),
-        swellHeight: Math.round(swellHeight * 100) / 100,
-        swellPeriod: Math.round(swellPeriod * 10) / 10,
-        swellDirection: Math.round(swellDirection),
-        swellDirectionLabel: degToCompass(swellDirection),
-        alignmentAngle,
-        summary,
-        conditionLabel,
-        shorelineAlignmentAngle,
-        shorelineAlignmentLabel,
+        score: primary.score,
+        windSpeed: primary.windSpeed,
+        windDirection: primary.windDirection,
+        windDirectionLabel: primary.windDirectionLabel,
+        swellHeight: primary.swellHeight,
+        swellPeriod: primary.swellPeriod,
+        swellDirection: primary.swellDirection,
+        swellDirectionLabel: primary.swellDirectionLabel,
+        alignmentAngle: primary.alignmentAngle,
+        summary: primary.summary,
+        conditionLabel: primary.conditionLabel,
+        shorelineAlignmentAngle: primary.shorelineAlignmentAngle,
+        shorelineAlignmentLabel: primary.shorelineAlignmentLabel,
+        timeSlots,
       };
     });
 

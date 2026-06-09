@@ -7,6 +7,9 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "dev": "pnpm --parallel --filter @workspace/client --filter @workspace/server run dev",
     "build": "pnpm run typecheck && pnpm --filter @workspace/client --filter @workspace/server run build",
+    "build:native": "pnpm --filter @workspace/client run build:native",
+    "cap:ios": "pnpm --filter @workspace/client run cap:ios",
+    "cap:android": "pnpm --filter @workspace/client run cap:android",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./client\" --filter \"./server\" --if-present run typecheck"
   },

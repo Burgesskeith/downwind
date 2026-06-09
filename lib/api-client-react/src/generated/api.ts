@@ -37,14 +37,11 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-// Callers pass partial overrides; Orval merges queryKey and queryFn internally.
 type QueryOptionOverrides<
   TQueryFnData,
   TError,
   TData = TQueryFnData,
-> = Partial<
-  Omit<UseQueryOptions<TQueryFnData, TError, TData>, "queryKey" | "queryFn">
->;
+> = Partial<Omit<UseQueryOptions<TQueryFnData, TError, TData>, "queryFn">>;
 
 type QueryOptionsWithKey = { queryKey?: QueryKey };
 

@@ -9,12 +9,47 @@ export interface HealthStatus {
   status: string;
 }
 
+/**
+ * Time-of-day window identifier
+ */
+export type TimeSlotForecastSlot =
+  (typeof TimeSlotForecastSlot)[keyof typeof TimeSlotForecastSlot];
+
+export const TimeSlotForecastSlot = {
+  "early-morning": "early-morning",
+  morning: "morning",
+  midday: "midday",
+  "late-afternoon": "late-afternoon",
+} as const;
+
+export interface TimeSlotForecast {
+  /** Time-of-day window identifier */
+  slot: TimeSlotForecastSlot;
+  /** Human-readable window e.g. "5am – 8am" */
+  label: string;
+  /** Local hour used for the forecast sample (7, 10, 13, or 16) */
+  sampleHour: number;
+  score: number;
+  windSpeed: number;
+  windDirection: number;
+  windDirectionLabel: string;
+  swellHeight: number;
+  swellPeriod: number;
+  swellDirection: number;
+  swellDirectionLabel: string;
+  alignmentAngle: number;
+  shorelineAlignmentAngle: number | null;
+  shorelineAlignmentLabel: string | null;
+  summary: string;
+  conditionLabel: string;
+}
+
 export interface DayForecast {
   /** ISO date string (YYYY-MM-DD) */
   date: string;
   /** Human-readable day label e.g. "Monday" */
   dayLabel: string;
-  /** Paddling score from 1 to 10 */
+  /** Paddling score from 1 to 10 (default slot — morning) */
   score: number;
   /** Wind speed in km/h */
   windSpeed: number;
@@ -40,6 +75,8 @@ export interface DayForecast {
   summary: string;
   /** Quick label e.g. "Epic", "Good", "Fair", "Poor" */
   conditionLabel: string;
+  /** Scored conditions at four time-of-day windows (sampled at 7am, 10am, 1pm, 4pm local) */
+  timeSlots: TimeSlotForecast[];
 }
 
 export interface WeatherForecast {

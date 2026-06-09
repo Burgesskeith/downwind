@@ -9,7 +9,9 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.API_URL ?? "http://localhost:3001";
 
   return {
-    base: "/",
+    envDir: path.resolve(import.meta.dirname, ".."),
+    // Relative base so Capacitor native WebViews resolve bundled assets correctly.
+    base: "./",
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
