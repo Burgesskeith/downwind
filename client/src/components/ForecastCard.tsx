@@ -52,7 +52,7 @@ export const ForecastCard = memo(function ForecastCard({
           </p>
         </div>
 
-        <div className="flex flex-col items-end">
+        <div className="flex flex-col items-center text-center">
           <div
             className={cn(
               "flex items-center justify-center w-16 h-16 rounded-full border-4 font-display text-2xl font-black shadow-lg transition-all duration-300 group-hover:scale-110",
@@ -64,7 +64,7 @@ export const ForecastCard = memo(function ForecastCard({
           >
             {activeSlot.score}
           </div>
-          <span className={cn("mt-2 text-sm font-bold uppercase tracking-wider", colors.text)}>
+          <span className={cn("mt-2 text-sm font-bold uppercase tracking-wider", colors.labelText)}>
             {activeSlot.conditionLabel}
           </span>
         </div>

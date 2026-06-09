@@ -1,6 +1,8 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MotionConfig } from "framer-motion";
 import { lazy, Suspense } from "react";
+import { isNativeApp } from "@/lib/platform";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/Home";
@@ -43,12 +45,15 @@ function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
+        <MotionConfig reducedMotion={isNativeApp ? "always" : "user"}>
+          <TooltipProvider>
+            {/* BASE_URL ("./") is for asset paths only — using it as router base breaks Capacitor route matching */}
+            <WouterRouter>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </MotionConfig>
       </QueryClientProvider>
     </ThemeProvider>
   );

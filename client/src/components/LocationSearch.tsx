@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback, memo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, MapPin, Loader2, Navigation } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useGeocodeLocation } from "@workspace/api-client-react";
 import { useDebounce } from "@/hooks/use-debounce";
+import { geocodeFromOpenMeteo } from "@/lib/geocode";
+import { geocodeDebounceMs } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import type { GeocodeLocation } from "@workspace/api-client-react";
 
@@ -19,17 +21,19 @@ export const LocationSearch = memo(function LocationSearch({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const debouncedQuery = useDebounce(query, 400);
+  const debouncedQuery = useDebounce(query, geocodeDebounceMs);
+  const isDebouncing = query.length > 2 && query !== debouncedQuery;
 
-  const { data, isLoading, isError } = useGeocodeLocation(
-    { query: debouncedQuery },
-    {
-      query: {
-        enabled: debouncedQuery.length > 2,
-        staleTime: 1000 * 60 * 5, // 5 minutes
-      },
-    },
-  );
+  const { data, isError, isFetching } = useQuery({
+    queryKey: ["geocode", debouncedQuery],
+    queryFn: ({ signal }) => geocodeFromOpenMeteo(debouncedQuery, signal),
+    enabled: debouncedQuery.length > 2,
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60,
+    retry: 0,
+  });
+
+  const showSearchSpinner = isDebouncing || (isFetching && debouncedQuery.length > 2);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -81,10 +85,10 @@ export const LocationSearch = memo(function LocationSearch({
           }}
         />
         <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-          {isLoading && debouncedQuery.length > 2 && (
+          {showSearchSpinner && (
             <Loader2 className="h-5 w-5 text-primary animate-spin" />
           )}
-          {!isLoading && query && (
+          {!showSearchSpinner && query && (
             <Navigation className="h-5 w-5 text-muted-foreground opacity-50" />
           )}
         </div>
@@ -99,20 +103,20 @@ export const LocationSearch = memo(function LocationSearch({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="absolute z-50 w-full mt-2 bg-background/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden"
           >
-            {isLoading && (
+            {showSearchSpinner && (
               <div className="p-4 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" /> Searching
                 locations...
               </div>
             )}
 
-            {!isLoading && isError && (
+            {!showSearchSpinner && isError && (
               <div className="p-4 text-center text-destructive text-sm">
                 Failed to load locations. Please try again.
               </div>
             )}
 
-            {!isLoading &&
+            {!showSearchSpinner &&
               !isError &&
               data?.results &&
               data.results.length === 0 && (
@@ -121,7 +125,7 @@ export const LocationSearch = memo(function LocationSearch({
                 </div>
               )}
 
-            {!isLoading &&
+            {!showSearchSpinner &&
               !isError &&
               data?.results &&
               data.results.length > 0 && (

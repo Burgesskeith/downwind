@@ -357,7 +357,11 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  const signal =
+    init.signal ??
+    (typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(12_000) : undefined);
+
+  const response = await fetch(input, { ...init, method, headers, signal });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

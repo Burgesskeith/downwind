@@ -8,6 +8,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, () => {
+// Bind all interfaces so physical devices on the LAN can reach the API.
+app.listen(port, "0.0.0.0", () => {
   logger.info({ port }, "Server listening");
 });

@@ -5,6 +5,8 @@ import { setBaseUrl } from "@workspace/api-client-react";
 export function configureNativeApi(): void {
   if (!Capacitor.isNativePlatform()) return;
 
+  document.documentElement.classList.add("capacitor-native");
+
   const apiUrl = import.meta.env.VITE_API_URL;
   if (apiUrl) {
     setBaseUrl(apiUrl);

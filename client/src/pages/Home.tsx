@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { MapPin, AlertCircle } from "lucide-react";
+import { keepPreviousData } from "@tanstack/react-query";
+import { MapPin, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getGetWeatherForecastQueryKey,
@@ -11,13 +12,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingGrid";
 import { SkillSelector, type SkillLevel } from "@/components/SkillSelector";
 import { TimeOfDaySelector } from "@/components/TimeOfDaySelector";
-import type { GeocodeLocation } from "@workspace/api-client-react";
+import type { DayForecast, GeocodeLocation } from "@workspace/api-client-react";
 import { PREFERENCE_KEYS } from "@/lib/preferenceKeys";
 import { getPreference, setPreference } from "@/lib/preferences";
 import {
   PADDLE_TIME_SLOTS,
   type PaddleTimeSlot,
 } from "@/lib/timeSlots";
+import { isNativeApp } from "@/lib/platform";
 
 // Busts React Query cache when forecast shape changes (e.g. daily → hourly timeSlots).
 const FORECAST_QUERY_VERSION = "v2-hourly";
@@ -110,13 +112,14 @@ export default function Home() {
     [selectedLocation, skill],
   );
 
-  const { data: forecast, isLoading, isError, error } = useGetWeatherForecast(
+  const { data: forecast, isLoading, isFetching, isError, error } = useGetWeatherForecast(
     forecastParams ?? { lat: 0, lon: 0, skill },
     {
       query: {
         enabled: prefsLoaded && !!forecastParams,
         staleTime: 1000 * 60 * 15,
-        retry: 1,
+        retry: 0,
+        placeholderData: keepPreviousData,
         queryKey: forecastParams
           ? [...getGetWeatherForecastQueryKey(forecastParams), FORECAST_QUERY_VERSION]
           : undefined,
@@ -124,14 +127,19 @@ export default function Home() {
     },
   );
 
+  const isFirstForecastLoad = Boolean(selectedLocation && isLoading && !forecast);
+  const isUpdatingForecast = Boolean(selectedLocation && isFetching && forecast);
+
   return (
     <div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
-      <div className="absolute top-0 inset-x-0 h-screen pointer-events-none overflow-hidden -z-10">
-        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-accent/5 blur-[100px]" />
-      </div>
+      {!isNativeApp && (
+        <div className="absolute top-0 inset-x-0 h-screen pointer-events-none overflow-hidden -z-10">
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
+          <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-accent/5 blur-[100px]" />
+        </div>
+      )}
 
-      <section className="relative z-20 pt-10 pb-10 px-4 sm:px-6 lg:px-8">
+      <section className="relative z-20 pt-[calc(4.5rem+env(safe-area-inset-top))] pb-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -172,13 +180,13 @@ export default function Home() {
             </motion.div>
           )}
 
-          {prefsLoaded && !selectedLocation && !isLoading && (
+          {prefsLoaded && !selectedLocation && (
             <motion.div key="empty" exit={{ opacity: 0, y: -20 }}>
               <EmptyState />
             </motion.div>
           )}
 
-          {prefsLoaded && isLoading && (
+          {prefsLoaded && isFirstForecastLoad && (
             <motion.div key="loading" exit={{ opacity: 0 }}>
               <LoadingGrid />
             </motion.div>
@@ -200,11 +208,17 @@ export default function Home() {
             </motion.div>
           )}
 
-          {prefsLoaded && forecast && selectedLocation && !isLoading && !isError && (
+          {prefsLoaded && forecast && selectedLocation && !isError && (
             <motion.div
               key="forecast"
               className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-4"
             >
+              {isUpdatingForecast && (
+                <div className="flex items-center justify-center gap-2 mb-4 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Updating forecast…
+                </div>
+              )}
               <div className="flex items-center gap-3 mb-8 pl-2">
                 <div className="p-3 bg-primary/10 rounded-xl text-primary">
                   <MapPin className="w-6 h-6" />
@@ -220,7 +234,7 @@ export default function Home() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {forecast.days.map((day, idx) => (
+                {forecast.days.map((day: DayForecast, idx: number) => (
                   <ForecastCard
                     key={day.date}
                     forecast={day}
