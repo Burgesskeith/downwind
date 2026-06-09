@@ -66,7 +66,8 @@ export const ForecastCard = memo(function ForecastCard({
           </div>
           <span
             className={cn(
-              "mt-2 text-sm font-extrabold uppercase tracking-wider text-black",
+              "mt-2 text-sm font-extrabold uppercase tracking-wider",
+              colors.text,
               colors.labelDarkText,
             )}
           >
