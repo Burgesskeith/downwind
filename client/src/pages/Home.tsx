@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { MapPin, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,7 +7,6 @@ import {
   useGetWeatherForecast,
 } from "@workspace/api-client-react";
 import { LocationSearch } from "@/components/LocationSearch";
-import { ForecastCard } from "@/components/ForecastCard";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingGrid } from "@/components/LoadingGrid";
 import { SkillSelector, type SkillLevel } from "@/components/SkillSelector";
@@ -23,6 +22,10 @@ import { isNativeApp } from "@/lib/platform";
 
 // Busts React Query cache when forecast shape changes (e.g. daily → hourly timeSlots).
 const FORECAST_QUERY_VERSION = "v2-hourly";
+
+const ForecastCard = lazy(() =>
+  import("@/components/ForecastCard").then((m) => ({ default: m.ForecastCard })),
+);
 
 function parseSkill(value: string | null): SkillLevel {
   if (value === "beginner" || value === "intermediate" || value === "advanced") {
@@ -233,16 +236,18 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {forecast.days.map((day: DayForecast, idx: number) => (
-                  <ForecastCard
-                    key={day.date}
-                    forecast={day}
-                    index={idx}
-                    preferredTimeSlot={timeSlot}
-                  />
-                ))}
-              </div>
+              <Suspense fallback={<LoadingGrid />}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {forecast.days.map((day: DayForecast, idx: number) => (
+                    <ForecastCard
+                      key={day.date}
+                      forecast={day}
+                      index={idx}
+                      preferredTimeSlot={timeSlot}
+                    />
+                  ))}
+                </div>
+              </Suspense>
             </motion.div>
           )}
         </AnimatePresence>

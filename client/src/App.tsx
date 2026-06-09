@@ -5,11 +5,11 @@ import { lazy, Suspense } from "react";
 import { isNativeApp } from "@/lib/platform";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Home from "@/pages/Home";
 import { BottomNav } from "@/components/BottomNav";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
-const About          = lazy(() => import("@/pages/About"));
+const Home             = lazy(() => import("@/pages/Home"));
+const About            = lazy(() => import("@/pages/About"));
 const Advertise      = lazy(() => import("@/pages/Advertise"));
 const AdvertiseSuccess = lazy(() => import("@/pages/AdvertiseSuccess"));
 const NotFound       = lazy(() => import("@/pages/not-found"));

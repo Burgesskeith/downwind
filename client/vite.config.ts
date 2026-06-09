@@ -26,10 +26,15 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       rollupOptions: {
         output: {
-          manualChunks: {
-            "vendor-react": ["react", "react-dom"],
-            "vendor-motion": ["framer-motion"],
-            "vendor-query": ["@tanstack/react-query"],
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return;
+
+            if (id.includes("framer-motion")) return "vendor-motion";
+            if (id.includes("@tanstack/react-query")) return "vendor-query";
+            if (id.includes("lucide-react")) return "vendor-icons";
+            if (id.includes("date-fns")) return "vendor-date-fns";
+            if (id.includes("wouter")) return "vendor-router";
+            if (id.includes("/react-dom/") || id.includes("/react/")) return "vendor-react";
           },
         },
       },

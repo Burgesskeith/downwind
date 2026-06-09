@@ -64,13 +64,18 @@ export const ForecastCard = memo(function ForecastCard({
           >
             {activeSlot.score}
           </div>
-          <span className={cn("mt-2 text-sm font-bold uppercase tracking-wider", colors.labelText)}>
+          <span
+            className={cn(
+              "mt-2 text-sm font-extrabold uppercase tracking-wider text-black",
+              colors.labelDarkText,
+            )}
+          >
             {activeSlot.conditionLabel}
           </span>
         </div>
       </div>
 
-      <p className="text-foreground/80 leading-relaxed mb-6 flex-grow">
+      <p className="text-foreground leading-relaxed mb-6 flex-grow">
         {activeSlot.summary}
       </p>
 
