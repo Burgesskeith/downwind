@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDebounce } from "@/hooks/use-debounce";
 import { geocodeFromOpenMeteo } from "@/lib/geocode";
 import { geocodeDebounceMs } from "@/lib/platform";
-import { cn } from "@/lib/utils";
+import { cn, formatLocationRegion } from "@/lib/utils";
 import type { GeocodeLocation } from "@workspace/api-client-react";
 
 interface LocationSearchProps {
@@ -130,25 +130,29 @@ export const LocationSearch = memo(function LocationSearch({
               data?.results &&
               data.results.length > 0 && (
                 <ul className="max-h-[300px] overflow-y-auto py-2">
-                  {data.results.map((loc) => (
-                    <li key={`${loc.lat}-${loc.lon}-${loc.name}`}>
-                      <button
-                        className="w-full text-left px-4 py-3 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none transition-colors flex items-start gap-3"
-                        onClick={() => handleSelect(loc)}
-                      >
-                        <MapPin className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                        <div>
-                          <div className="font-semibold text-foreground">
-                            {loc.name}
+                  {data.results.map((loc) => {
+                    const region = formatLocationRegion(loc);
+                    return (
+                      <li key={`${loc.lat}-${loc.lon}-${loc.name}`}>
+                        <button
+                          className="w-full text-left px-4 py-3 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none transition-colors flex items-start gap-3"
+                          onClick={() => handleSelect(loc)}
+                        >
+                          <MapPin className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                          <div>
+                            <div className="font-semibold text-foreground">
+                              {loc.name}
+                            </div>
+                            {region && (
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {region}
+                              </div>
+                            )}
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {loc.admin1 ? `${loc.admin1}, ` : ""}
-                            {loc.country}
-                          </div>
-                        </div>
-                      </button>
-                    </li>
-                  ))}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
           </motion.div>

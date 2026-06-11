@@ -19,6 +19,7 @@ import {
   type PaddleTimeSlot,
 } from "@/lib/timeSlots";
 import { isNativeApp } from "@/lib/platform";
+import { formatLocationRegion } from "@/lib/utils";
 
 // Busts React Query cache when forecast shape changes (e.g. daily → hourly timeSlots).
 const FORECAST_QUERY_VERSION = "v2-hourly";
@@ -132,6 +133,9 @@ export default function Home() {
 
   const isFirstForecastLoad = Boolean(selectedLocation && isLoading && !forecast);
   const isUpdatingForecast = Boolean(selectedLocation && isFetching && forecast);
+  const locationRegion = selectedLocation
+    ? formatLocationRegion(selectedLocation)
+    : null;
 
   return (
     <div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
@@ -230,9 +234,11 @@ export default function Home() {
                   <h2 className="font-display text-2xl font-bold text-foreground">
                     {forecast.locationName}
                   </h2>
-                  <p className="text-muted-foreground font-medium">
-                    {forecast.lat.toFixed(4)}°, {forecast.lon.toFixed(4)}°
-                  </p>
+                  {locationRegion && (
+                    <p className="text-muted-foreground font-medium">
+                      {locationRegion}
+                    </p>
+                  )}
                 </div>
               </div>
 

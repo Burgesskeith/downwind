@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Region line for a geocoded place, e.g. "Queensland, Australia". */
+export function formatLocationRegion(location: {
+  admin1?: string;
+  country?: string;
+}): string | null {
+  const parts = [location.admin1, location.country].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
 export function getScoreColorClasses(score: number): {
   text: string;
   labelDarkText: string;
