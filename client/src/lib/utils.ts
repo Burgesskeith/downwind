@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Open-Meteo spells this "Mooloolabah"; use the common local spelling. */
+export function normalizeLocationName(name: string): string {
+  if (/^mooloolabah$/i.test(name.trim())) {
+    return "Mooloolaba";
+  }
+  return name;
+}
+
 /** Region line for a geocoded place, e.g. "Queensland, Australia". */
 export function formatLocationRegion(location: {
   admin1?: string;

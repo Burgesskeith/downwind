@@ -1,4 +1,5 @@
 import type { GeocodeLocation, GeocodeResult } from "@workspace/api-client-react";
+import { normalizeLocationName } from "@/lib/utils";
 
 const OPEN_METEO_GEOCODE = "https://geocoding-api.open-meteo.com/v1/search";
 
@@ -39,7 +40,7 @@ export async function geocodeFromOpenMeteo(
 
   const result: GeocodeResult = {
     results: (data.results ?? []).map((r) => ({
-      name: r.name,
+      name: normalizeLocationName(r.name),
       lat: r.latitude,
       lon: r.longitude,
       country: r.country,
@@ -83,19 +84,24 @@ export async function enrichGeocodeLocation(
   location: GeocodeLocation,
   signal?: AbortSignal,
 ): Promise<GeocodeLocation> {
-  if (!locationNeedsRegion(location)) return location;
+  const normalized = {
+    ...location,
+    name: normalizeLocationName(location.name),
+  };
+
+  if (!locationNeedsRegion(normalized)) return normalized;
 
   try {
-    const { results } = await geocodeFromOpenMeteo(location.name, signal);
-    const match = findBestGeocodeMatch(location, results);
-    if (!match) return location;
+    const { results } = await geocodeFromOpenMeteo(normalized.name, signal);
+    const match = findBestGeocodeMatch(normalized, results);
+    if (!match) return normalized;
 
     return {
-      ...location,
-      country: location.country ?? match.country,
-      admin1: location.admin1 ?? match.admin1,
+      ...normalized,
+      country: normalized.country ?? match.country,
+      admin1: normalized.admin1 ?? match.admin1,
     };
   } catch {
-    return location;
+    return normalized;
   }
 }

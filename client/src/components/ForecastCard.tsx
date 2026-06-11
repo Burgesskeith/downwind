@@ -4,9 +4,8 @@ import { format, parseISO } from "date-fns";
 import { Wind, Waves, Compass } from "lucide-react";
 import { cn, getScoreColorClasses } from "@/lib/utils";
 import type { DayForecast } from "@workspace/api-client-react";
-import { Slider } from "@/components/ui/slider";
+import { TimeSlotSegmentedControl } from "@/components/TimeSlotSegmentedControl";
 import {
-  PADDLE_TIME_SLOTS,
   resolveActiveTimeSlot,
   slotToIndex,
   type PaddleTimeSlot,
@@ -132,30 +131,11 @@ export const ForecastCard = memo(function ForecastCard({
             {activeSlot.label}
           </span>
         </div>
-        <Slider
-          value={[slotIndex]}
-          min={0}
-          max={3}
-          step={1}
-          onValueChange={(values) => {
-            const next = values[0];
-            if (next !== undefined) setSlotIndex(next);
-          }}
-          aria-label={`Time of day for ${forecast.dayLabel}`}
+        <TimeSlotSegmentedControl
+          value={slotIndex}
+          onChange={setSlotIndex}
+          ariaLabel={`Time of day for ${forecast.dayLabel}`}
         />
-        <div className="mt-2 grid grid-cols-4 gap-1 text-[10px] text-muted-foreground text-center">
-          {PADDLE_TIME_SLOTS.map((slot, i) => (
-            <span
-              key={slot.value}
-              className={cn(
-                "truncate",
-                i === slotIndex && "text-primary font-semibold",
-              )}
-            >
-              {slot.shortLabel}
-            </span>
-          ))}
-        </div>
       </div>
     </motion.div>
   );

@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { GetWeatherForecastQueryParams, GetWeatherForecastResponse, GeocodeLocationQueryParams, GeocodeLocationResponse } from "@workspace/api-zod";
 import { createCache, MS } from "../lib/cache";
+import { normalizeLocationName } from "../lib/locationNames";
 import {
   PADDLE_TIME_SLOTS,
   findHourlyIndex,
@@ -401,7 +402,13 @@ router.get("/forecast", async (req: Request, res: Response) => {
   const cached = forecastCache.get(forecastKey);
   if (cached) {
     res.set("Cache-Control", "public, max-age=900"); // 15 min
-    res.json(cached);
+    const normalized = cached as { locationName?: string };
+    res.json({
+      ...cached,
+      locationName: normalizeLocationName(
+        normalized.locationName ?? `${lat.toFixed(2)}, ${lon.toFixed(2)}`,
+      ),
+    });
     return;
   }
 
@@ -565,7 +572,9 @@ router.get("/forecast", async (req: Request, res: Response) => {
     });
 
     const forecast = GetWeatherForecastResponse.parse({
-      locationName: locationName ?? `${lat.toFixed(2)}, ${lon.toFixed(2)}`,
+      locationName: normalizeLocationName(
+        locationName ?? `${lat.toFixed(2)}, ${lon.toFixed(2)}`,
+      ),
       lat,
       lon,
       days,
@@ -625,7 +634,7 @@ router.get("/geocode", async (req: Request, res: Response) => {
     };
 
     const results = (data.results ?? []).map((r) => ({
-      name: r.name,
+      name: normalizeLocationName(r.name),
       lat: r.latitude,
       lon: r.longitude,
       country: r.country,

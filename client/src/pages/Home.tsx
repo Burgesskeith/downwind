@@ -20,7 +20,7 @@ import {
 } from "@/lib/timeSlots";
 import { isNativeApp } from "@/lib/platform";
 import { enrichGeocodeLocation } from "@/lib/geocode";
-import { formatLocationRegion } from "@/lib/utils";
+import { formatLocationRegion, normalizeLocationName } from "@/lib/utils";
 
 // Busts React Query cache when forecast shape changes (e.g. daily → hourly timeSlots).
 const FORECAST_QUERY_VERSION = "v2-hourly";
@@ -52,7 +52,7 @@ function parseSavedLocation(value: string | null): GeocodeLocation | null {
       typeof parsed.lat === "number" &&
       typeof parsed.lon === "number"
     ) {
-      return parsed;
+      return { ...parsed, name: normalizeLocationName(parsed.name) };
     }
   } catch {
     // Ignore corrupt saved location
@@ -83,14 +83,24 @@ export default function Home() {
 
       let location = parseSavedLocation(savedLocation);
       if (location) {
+        let savedName: string | undefined;
+        if (savedLocation) {
+          try {
+            savedName = (JSON.parse(savedLocation) as GeocodeLocation).name;
+          } catch {
+            // Ignore corrupt saved location name
+          }
+        }
+
         const enriched = await enrichGeocodeLocation(location);
         if (
           enriched.country !== location.country ||
-          enriched.admin1 !== location.admin1
+          enriched.admin1 !== location.admin1 ||
+          savedName !== enriched.name
         ) {
-          location = enriched;
           void setPreference(PREFERENCE_KEYS.location, JSON.stringify(enriched));
         }
+        location = enriched;
       }
       setSelectedLocation(location);
 
