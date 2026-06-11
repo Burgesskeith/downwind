@@ -1,4 +1,4 @@
-import type { GeocodeResult } from "@workspace/api-client-react";
+import type { GeocodeLocation, GeocodeResult } from "@workspace/api-client-react";
 
 const OPEN_METEO_GEOCODE = "https://geocoding-api.open-meteo.com/v1/search";
 
@@ -49,4 +49,53 @@ export async function geocodeFromOpenMeteo(
 
   geocodeCache.set(cacheKey, result);
   return result;
+}
+
+function locationNeedsRegion(location: GeocodeLocation): boolean {
+  return !location.country && !location.admin1;
+}
+
+/** Pick the geocode hit closest to a known lat/lon (saved prefs often lack region fields). */
+export function findBestGeocodeMatch(
+  target: { lat: number; lon: number },
+  results: GeocodeLocation[],
+): GeocodeLocation | undefined {
+  if (results.length === 0) return undefined;
+
+  let best = results[0];
+  let bestDistance = Infinity;
+
+  for (const candidate of results) {
+    const dLat = target.lat - candidate.lat;
+    const dLon = target.lon - candidate.lon;
+    const distance = dLat * dLat + dLon * dLon;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
+/** Fill in admin1/country when missing — common for locations saved before those fields were stored. */
+export async function enrichGeocodeLocation(
+  location: GeocodeLocation,
+  signal?: AbortSignal,
+): Promise<GeocodeLocation> {
+  if (!locationNeedsRegion(location)) return location;
+
+  try {
+    const { results } = await geocodeFromOpenMeteo(location.name, signal);
+    const match = findBestGeocodeMatch(location, results);
+    if (!match) return location;
+
+    return {
+      ...location,
+      country: location.country ?? match.country,
+      admin1: location.admin1 ?? match.admin1,
+    };
+  } catch {
+    return location;
+  }
 }

@@ -19,6 +19,7 @@ import {
   type PaddleTimeSlot,
 } from "@/lib/timeSlots";
 import { isNativeApp } from "@/lib/platform";
+import { enrichGeocodeLocation } from "@/lib/geocode";
 import { formatLocationRegion } from "@/lib/utils";
 
 // Busts React Query cache when forecast shape changes (e.g. daily → hourly timeSlots).
@@ -79,7 +80,20 @@ export default function Home() {
 
       setSkill(parseSkill(savedSkill));
       setTimeSlot(parseTimeSlot(savedTimeSlot));
-      setSelectedLocation(parseSavedLocation(savedLocation));
+
+      let location = parseSavedLocation(savedLocation);
+      if (location) {
+        const enriched = await enrichGeocodeLocation(location);
+        if (
+          enriched.country !== location.country ||
+          enriched.admin1 !== location.admin1
+        ) {
+          location = enriched;
+          void setPreference(PREFERENCE_KEYS.location, JSON.stringify(enriched));
+        }
+      }
+      setSelectedLocation(location);
+
       setPrefsLoaded(true);
     })();
 
@@ -99,8 +113,11 @@ export default function Home() {
   }, [timeSlot, prefsLoaded]);
 
   const handleLocationSelect = useCallback((location: GeocodeLocation) => {
-    setSelectedLocation(location);
-    void setPreference(PREFERENCE_KEYS.location, JSON.stringify(location));
+    void (async () => {
+      const enriched = await enrichGeocodeLocation(location);
+      setSelectedLocation(enriched);
+      void setPreference(PREFERENCE_KEYS.location, JSON.stringify(enriched));
+    })();
   }, []);
 
   const forecastParams = useMemo(
@@ -193,6 +210,32 @@ export default function Home() {
             </motion.div>
           )}
 
+          {prefsLoaded && selectedLocation && (
+            <motion.div
+              key="location-header"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-4"
+            >
+              <div className="flex items-center gap-3 mb-8 pl-2">
+                <div className="p-3 bg-primary/10 rounded-xl text-primary">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-display text-2xl font-bold text-foreground">
+                    {selectedLocation.name}
+                  </h2>
+                  {locationRegion && (
+                    <p className="text-muted-foreground font-medium">
+                      {locationRegion}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {prefsLoaded && isFirstForecastLoad && (
             <motion.div key="loading" exit={{ opacity: 0 }}>
               <LoadingGrid />
@@ -226,21 +269,6 @@ export default function Home() {
                   Updating forecast…
                 </div>
               )}
-              <div className="flex items-center gap-3 mb-8 pl-2">
-                <div className="p-3 bg-primary/10 rounded-xl text-primary">
-                  <MapPin className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="font-display text-2xl font-bold text-foreground">
-                    {forecast.locationName}
-                  </h2>
-                  {locationRegion && (
-                    <p className="text-muted-foreground font-medium">
-                      {locationRegion}
-                    </p>
-                  )}
-                </div>
-              </div>
 
               <Suspense fallback={<LoadingGrid />}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
