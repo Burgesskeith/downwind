@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect, useCallback, memo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Search, MapPin, Loader2, Navigation } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/lib/motion";
 import { useDebounce } from "@/hooks/use-debounce";
 import { geocodeFromOpenMeteo } from "@/lib/geocode";
 import { geocodeDebounceMs } from "@/lib/platform";
 import { cn, formatLocationRegion } from "@/lib/utils";
-import type { GeocodeLocation } from "@workspace/api-client-react";
+import {
+  useQuery,
+  type GeocodeLocation,
+  type GeocodeResult,
+} from "@workspace/api-client-react";
 
 interface LocationSearchProps {
   onSelect: (location: GeocodeLocation) => void;
@@ -21,10 +24,16 @@ export const LocationSearch = memo(function LocationSearch({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (selectedName) {
+      setQuery(selectedName);
+    }
+  }, [selectedName]);
+
   const debouncedQuery = useDebounce(query, geocodeDebounceMs);
   const isDebouncing = query.length > 2 && query !== debouncedQuery;
 
-  const { data, isError, isFetching } = useQuery({
+  const { data, isError, isFetching } = useQuery<GeocodeResult>({
     queryKey: ["geocode", debouncedQuery],
     queryFn: ({ signal }) => geocodeFromOpenMeteo(debouncedQuery, signal),
     enabled: debouncedQuery.length > 2,

@@ -24,11 +24,14 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: path.resolve(import.meta.dirname, "dist"),
       emptyOutDir: true,
+      target: "es2022",
+      modulePreload: { polyfill: false },
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (!id.includes("node_modules")) return;
 
+            if (id.includes("@capacitor/")) return "vendor-capacitor";
             if (id.includes("framer-motion")) return "vendor-motion";
             if (id.includes("@tanstack/react-query")) return "vendor-query";
             if (id.includes("lucide-react")) return "vendor-icons";

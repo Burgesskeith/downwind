@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { MapPin, AlertCircle, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "@/lib/motion";
 import {
   getGetWeatherForecastQueryKey,
   useGetWeatherForecast,
@@ -19,8 +19,10 @@ import {
   type PaddleTimeSlot,
 } from "@/lib/timeSlots";
 import { isNativeApp } from "@/lib/platform";
+import { isNativePlatform } from "@/lib/capacitor";
 import { enrichGeocodeLocation } from "@/lib/geocode";
 import { formatLocationRegion, normalizeLocationName } from "@/lib/utils";
+import { getPreferenceSync } from "@/lib/preferences";
 
 // Busts React Query cache when forecast shape changes (e.g. daily → hourly timeSlots).
 const FORECAST_QUERY_VERSION = "v2-hourly";
@@ -60,39 +62,67 @@ function parseSavedLocation(value: string | null): GeocodeLocation | null {
   return null;
 }
 
+function readInitialWebPrefs(): {
+  skill: SkillLevel;
+  timeSlot: PaddleTimeSlot;
+  location: GeocodeLocation | null;
+} | null {
+  if (isNativePlatform()) return null;
+
+  return {
+    skill: parseSkill(getPreferenceSync(PREFERENCE_KEYS.skill)),
+    timeSlot: parseTimeSlot(getPreferenceSync(PREFERENCE_KEYS.timeSlot)),
+    location: parseSavedLocation(getPreferenceSync(PREFERENCE_KEYS.location)),
+  };
+}
+
 export default function Home() {
-  const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(null);
-  const [skill, setSkill] = useState<SkillLevel>("intermediate");
-  const [timeSlot, setTimeSlot] = useState<PaddleTimeSlot>("morning");
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<GeocodeLocation | null>(
+    () => readInitialWebPrefs()?.location ?? null,
+  );
+  const [skill, setSkill] = useState<SkillLevel>(
+    () => readInitialWebPrefs()?.skill ?? "intermediate",
+  );
+  const [timeSlot, setTimeSlot] = useState<PaddleTimeSlot>(
+    () => readInitialWebPrefs()?.timeSlot ?? "morning",
+  );
+  const [prefsLoaded, setPrefsLoaded] = useState(() => !isNativePlatform());
+  const locationSelectionRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      const [savedSkill, savedTimeSlot, savedLocation] = await Promise.all([
-        getPreference(PREFERENCE_KEYS.skill),
-        getPreference(PREFERENCE_KEYS.timeSlot),
-        getPreference(PREFERENCE_KEYS.location),
-      ]);
+      const savedLocationRaw = isNativePlatform()
+        ? await getPreference(PREFERENCE_KEYS.location)
+        : getPreferenceSync(PREFERENCE_KEYS.location);
+
+      if (isNativePlatform()) {
+        const [savedSkill, savedTimeSlot] = await Promise.all([
+          getPreference(PREFERENCE_KEYS.skill),
+          getPreference(PREFERENCE_KEYS.timeSlot),
+        ]);
+        if (cancelled) return;
+        setSkill(parseSkill(savedSkill));
+        setTimeSlot(parseTimeSlot(savedTimeSlot));
+      }
 
       if (cancelled) return;
 
-      setSkill(parseSkill(savedSkill));
-      setTimeSlot(parseTimeSlot(savedTimeSlot));
-
-      let location = parseSavedLocation(savedLocation);
+      let location = parseSavedLocation(savedLocationRaw);
       if (location) {
         let savedName: string | undefined;
-        if (savedLocation) {
+        if (savedLocationRaw) {
           try {
-            savedName = (JSON.parse(savedLocation) as GeocodeLocation).name;
+            savedName = (JSON.parse(savedLocationRaw) as GeocodeLocation).name;
           } catch {
             // Ignore corrupt saved location name
           }
         }
 
         const enriched = await enrichGeocodeLocation(location);
+        if (cancelled) return;
+
         if (
           enriched.country !== location.country ||
           enriched.admin1 !== location.admin1 ||
@@ -104,6 +134,7 @@ export default function Home() {
       }
       setSelectedLocation(location);
 
+      if (cancelled) return;
       setPrefsLoaded(true);
     })();
 
@@ -123,8 +154,10 @@ export default function Home() {
   }, [timeSlot, prefsLoaded]);
 
   const handleLocationSelect = useCallback((location: GeocodeLocation) => {
+    const selectionId = ++locationSelectionRef.current;
     void (async () => {
       const enriched = await enrichGeocodeLocation(location);
+      if (selectionId !== locationSelectionRef.current) return;
       setSelectedLocation(enriched);
       void setPreference(PREFERENCE_KEYS.location, JSON.stringify(enriched));
     })();
@@ -166,7 +199,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
-      {!isNativeApp && (
+      {!isNativeApp() && (
         <div className="absolute top-0 inset-x-0 h-screen pointer-events-none overflow-hidden -z-10">
           <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px]" />
           <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-accent/5 blur-[100px]" />
@@ -175,25 +208,26 @@ export default function Home() {
 
       <section className="relative z-20 pt-[calc(4.5rem+env(safe-area-inset-top))] pb-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground tracking-tight mb-6">
-              Chase the <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Perfect Glide</span>
-            </h1>
+          <div className="animate-fade-up">
+            <div className="flex items-center justify-center gap-4 sm:gap-5 mb-6">
+              <img
+                src={`${import.meta.env.BASE_URL}images/wuther.png`}
+                alt="App logo"
+                className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-2xl object-cover shrink-0 shadow-md ring-2 ring-primary/20"
+              />
+              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-foreground tracking-tight text-left">
+                Chase the{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
+                  Perfect Glide
+                </span>
+              </h1>
+            </div>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10 font-medium">
               Predict the ultimate downwind paddle days. We analyze wind, swell size, and directional alignment to score the conditions for your local beach.
             </p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="w-full flex flex-col items-center gap-4"
-          >
+          <div className="animate-fade-up-delayed w-full flex flex-col items-center gap-4">
             <LocationSearch
               onSelect={handleLocationSelect}
               selectedName={selectedLocation?.name}
@@ -202,18 +236,12 @@ export default function Home() {
               <SkillSelector value={skill} onChange={setSkill} />
               <TimeOfDaySelector value={timeSlot} onChange={setTimeSlot} />
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       <main className="flex-grow w-full z-10 pb-24">
         <AnimatePresence mode="wait">
-          {!prefsLoaded && (
-            <motion.div key="prefs-loading" exit={{ opacity: 0 }}>
-              <LoadingGrid />
-            </motion.div>
-          )}
-
           {prefsLoaded && !selectedLocation && (
             <motion.div key="empty" exit={{ opacity: 0, y: -20 }}>
               <EmptyState />

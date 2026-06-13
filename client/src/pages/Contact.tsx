@@ -191,7 +191,7 @@ export default function Contact() {
             <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 text-primary">
               <Mail className="w-5 h-5" />
             </div>
-            <h1 className="font-display text-4xl font-black">Contact</h1>
+            <h1 className="font-display text-4xl font-black">Contact Me</h1>
           </div>
           <p className="text-muted-foreground text-lg">
             Send a suggestion or report a problem. I&apos;d love to hear from you.

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { PREFERENCE_KEYS } from "@/lib/preferenceKeys";
-import { getPreference, setPreference } from "@/lib/preferences";
+import { getPreference, getPreferenceSync, setPreference } from "@/lib/preferences";
+import { isNativePlatform } from "@/lib/capacitor";
 
 type Theme = "light" | "dark";
 
@@ -32,11 +33,23 @@ function applyThemeToDocument(theme: Theme): void {
   }
 }
 
+function getInitialTheme(): Theme {
+  const stored = getPreferenceSync(PREFERENCE_KEYS.theme);
+  if (stored === "dark" || stored === "light") return stored;
+  return getSystemTheme();
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getSystemTheme);
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [prefsLoaded, setPrefsLoaded] = useState(!isNativePlatform());
 
   useEffect(() => {
+    applyThemeToDocument(theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+
     let cancelled = false;
 
     (async () => {
@@ -58,7 +71,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!prefsLoaded) return;
-    applyThemeToDocument(theme);
     void setPreference(PREFERENCE_KEYS.theme, theme);
   }, [theme, prefsLoaded]);
 

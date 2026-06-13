@@ -53,7 +53,7 @@ export async function geocodeFromOpenMeteo(
 }
 
 function locationNeedsRegion(location: GeocodeLocation): boolean {
-  return !location.country && !location.admin1;
+  return !location.country || !location.admin1;
 }
 
 /** Pick the geocode hit closest to a known lat/lon (saved prefs often lack region fields). */

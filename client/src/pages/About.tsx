@@ -25,7 +25,7 @@ const HOW_IT_WORKS_STEPS = [
     icon: Calendar,
     title: "Read your 7-day forecast",
     description:
-      "Each day gets a score (Epic → Poor). Slide the time-of-day control on any card to check different windows.",
+      "Each day gets a score (Epic → Poor). Select the time slot options on any card to check different windows.",
   },
 ] as const;
 
@@ -67,17 +67,20 @@ export default function About() {
               className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
             />
             <div>
-              <h1 className="font-display text-4xl font-black mb-1">Hi, I&apos;m Keith</h1>
+              <h1 className="font-display text-4xl font-black mb-1">Hi,my name is Keith Burgess</h1>
               <p className="text-primary font-medium mb-6">Downwind paddler · App builder</p>
               <div className="space-y-4 text-muted-foreground text-lg leading-relaxed">
                 <p>
-                  I&apos;m Keith, a downwind paddler who built this app because finding the right
-                  day to paddle shouldn&apos;t mean juggling half a dozen weather apps.
+                  I&apos;m a downwind paddler who built this app because finding the right
+                  day to paddle shouldn&apos;t mean juggling different weather apps.
                 </p>
                 <p>
-                  Downwind paddling lives or dies on wind direction, swell size, and how those
+                  Good downwind conditions depend on wind direction, swell size, and how those
                   align with your beach. I wanted one place that scores those conditions for any
                   coastline in the world — tuned to your skill level.
+                </p>
+                <p>
+                  The app scores each day from one to 10 with one being <span className = "text-red-400">POOR</span> and 10 being <span className="text-green-400">EPIC</span> .  Select a time slot at the bottom of each card to find the best time of the selected day to paddle.
                 </p>
                 <p>
                   I hope it helps you catch more glides. If you have ideas to make it better,
@@ -116,7 +119,10 @@ export default function About() {
           </ol>
           <p className="mt-6 pt-6 border-t border-border/50 text-muted-foreground leading-relaxed">
             Higher scores mean better downwind alignment. Green is epic, red means sit it out and
-            make coffee.
+            have coffee.
+          </p>
+          <p className="mt-6 pt-6 border-t border-border/50 text-muted-foreground leading-relaxed">
+            An important note:  This app uses the Open-Meteo data.  This may vary somewhat from local weather systems based on how data is collected.  
           </p>
         </section>
 

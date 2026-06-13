@@ -36,3 +36,22 @@ export function pickHourlyValue<T>(values: (T | null)[], index: number, fallback
   const value = values[index];
   return value ?? fallback;
 }
+
+/** Like pickHourlyValue but preserves 0 and only falls back when the value is null/missing. */
+export function pickHourlyNumber(
+  values: (number | null)[],
+  index: number,
+  fallback: number,
+): number {
+  if (index < 0) return fallback;
+  const value = values[index];
+  return value ?? fallback;
+}
+
+export function pickHourlyNumberOrNull(
+  values: (number | null)[],
+  index: number,
+): number | null {
+  if (index < 0) return null;
+  return values[index] ?? null;
+}

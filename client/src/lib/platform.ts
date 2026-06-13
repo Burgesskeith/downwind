@@ -1,6 +1,8 @@
-import { Capacitor } from "@capacitor/core";
+import { isNativePlatform } from "@/lib/capacitor";
 
-export const isNativeApp = Capacitor.isNativePlatform();
+export function isNativeApp(): boolean {
+  return isNativePlatform();
+}
 
 /** Short debounce — geocoding hits Open-Meteo directly, not the dev API server. */
-export const geocodeDebounceMs = isNativeApp ? 250 : 300;
+export const geocodeDebounceMs = isNativePlatform() ? 250 : 300;

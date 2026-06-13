@@ -5,12 +5,14 @@ import { normalizeLocationName } from "../lib/locationNames";
 import {
   PADDLE_TIME_SLOTS,
   findHourlyIndex,
-  pickHourlyValue,
+  pickHourlyNumber,
+  pickHourlyNumberOrNull,
 } from "../lib/paddleTimeSlots";
 
 // ─── Server-side caches ────────────────────────────────────────────────────
 // Shoreline direction is geographic — coastlines don't change. Cache 30 days.
-const shorelineCache = createCache<number | undefined>();
+// "failed" marks a completed probe that found no reliable direction.
+const shorelineCache = createCache<number | "failed">();
 // Full forecast: 15-min TTL matches frontend React Query stale time.
 const forecastCache = createCache<object>();
 // Geocode: place names don't move. 1-hour TTL.
@@ -201,8 +203,8 @@ function scorePaddlingDay(params: {
     const swellDiff2 = angleDiff(swellDirection, (shorelineDirection + 180) % 360);
     swellShoreAngle = Math.min(swellDiff1, swellDiff2);
 
-    // Combined angle stored for reference but scoring uses wind-only
-    combinedShoreAngle = Math.round(shorelineAngle);
+    // Combined wind+swell angle offset from the shore-parallel axis
+    combinedShoreAngle = Math.round((shorelineAngle + swellShoreAngle) / 2);
 
     // Wind direction is the FROM direction (meteorological convention).
     // Offshore = wind coming FROM the land side (i.e. blowing out to sea).
@@ -364,14 +366,77 @@ function scorePaddlingDay(params: {
   };
 }
 
-function getDayLabel(dateStr: string): string {
-  const date = new Date(dateStr + "T12:00:00Z");
-  const today = new Date();
-  today.setUTCHours(12, 0, 0, 0);
-  const diff = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+function getCalendarDateInTimezone(timezone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function getDayLabel(dateStr: string, timezone: string): string {
+  const todayInTz = getCalendarDateInTimezone(timezone);
+
+  const [todayYear, todayMonth, todayDay] = todayInTz.split("-").map(Number);
+  const [dateYear, dateMonth, dateDay] = dateStr.split("-").map(Number);
+  const todayMs = Date.UTC(todayYear, todayMonth - 1, todayDay);
+  const dateMs = Date.UTC(dateYear, dateMonth - 1, dateDay);
+  const diff = Math.round((dateMs - todayMs) / (1000 * 60 * 60 * 24));
+
   if (diff === 0) return "Today";
   if (diff === 1) return "Tomorrow";
-  return date.toLocaleDateString("en-AU", { weekday: "long", timeZone: "UTC" });
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString("en-AU", {
+    weekday: "long",
+    timeZone: timezone,
+  });
+}
+
+function buildForecastIndexKey(
+  latR: number,
+  lonR: number,
+  skill: SkillLevel,
+  directionKey: string,
+): string {
+  return `${latR},${lonR},${skill},${directionKey},v2-hourly`;
+}
+
+/** Includes the location calendar date so the cache rolls over at local midnight, not UTC. */
+function buildForecastDataKey(
+  latR: number,
+  lonR: number,
+  skill: SkillLevel,
+  directionKey: string,
+  timezone: string,
+): string {
+  return `${buildForecastIndexKey(latR, lonR, skill, directionKey)},${getCalendarDateInTimezone(timezone)}`;
+}
+
+interface CachedForecastPayload {
+  timezone: string;
+  locationName: string;
+  lat: number;
+  lon: number;
+  days: Array<Record<string, unknown> & { date: string; dayLabel: string }>;
+}
+
+function withFreshDayLabels(
+  cached: CachedForecastPayload,
+  lat: number,
+  lon: number,
+  locationName: string | undefined,
+) {
+  return {
+    locationName: normalizeLocationName(
+      locationName ?? cached.locationName ?? `${lat.toFixed(2)}, ${lon.toFixed(2)}`,
+    ),
+    lat,
+    lon,
+    days: cached.days.map((day) => ({
+      ...day,
+      dayLabel: getDayLabel(day.date, cached.timezone),
+    })),
+  };
 }
 
 router.get("/forecast", async (req: Request, res: Response) => {
@@ -393,23 +458,34 @@ router.get("/forecast", async (req: Request, res: Response) => {
   // Use supplied paddling direction, or auto-detect from coastline
   let shorelineDirection: number | undefined = parseResult.data.paddlingDirection;
 
-  // Cache key for forecast: rounded coords (2dp ≈ 1km) + skill + today's date
-  // Including date ensures the cache naturally expires at midnight.
-  const today = new Date().toISOString().slice(0, 10);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    res.status(400).json({ error: "Invalid parameters. Provide lat and lon as numbers." });
+    return;
+  }
+  if (
+    shorelineDirection !== undefined &&
+    (!Number.isFinite(shorelineDirection) || shorelineDirection < 0 || shorelineDirection > 360)
+  ) {
+    res.status(400).json({ error: "Invalid paddlingDirection. Provide a number between 0 and 360." });
+    return;
+  }
+
+  // Cache: index key points at the location timezone; data key includes that TZ's calendar date.
   const latR = Math.round(lat * 100) / 100;
   const lonR = Math.round(lon * 100) / 100;
-  const forecastKey = `${latR},${lonR},${skill},${today},v2-hourly`;
-  const cached = forecastCache.get(forecastKey);
-  if (cached) {
-    res.set("Cache-Control", "public, max-age=900"); // 15 min
-    const normalized = cached as { locationName?: string };
-    res.json({
-      ...cached,
-      locationName: normalizeLocationName(
-        normalized.locationName ?? `${lat.toFixed(2)}, ${lon.toFixed(2)}`,
-      ),
-    });
-    return;
+  const directionKey =
+    shorelineDirection !== undefined ? String(Math.round(shorelineDirection)) : "auto";
+  const indexKey = buildForecastIndexKey(latR, lonR, skill, directionKey);
+  const indexEntry = forecastCache.get(indexKey) as { timezone: string } | undefined;
+
+  if (indexEntry?.timezone) {
+    const dataKey = buildForecastDataKey(latR, lonR, skill, directionKey, indexEntry.timezone);
+    const cached = forecastCache.get(dataKey) as CachedForecastPayload | undefined;
+    if (cached) {
+      res.set("Cache-Control", "public, max-age=900"); // 15 min
+      res.json(withFreshDayLabels(cached, lat, lon, locationName));
+      return;
+    }
   }
 
   try {
@@ -441,12 +517,14 @@ router.get("/forecast", async (req: Request, res: Response) => {
     const shorelinePromise: Promise<number | undefined> =
       shorelineDirection !== undefined
         ? Promise.resolve(undefined)
-        : cachedShoreline !== undefined
-          ? Promise.resolve(cachedShoreline)
-          : detectShorelineDirection(lat, lon).then(result => {
-              shorelineCache.set(shoreKey, result, 30 * MS.DAY);
-              return result;
-            });
+        : cachedShoreline === "failed"
+          ? Promise.resolve(undefined)
+          : typeof cachedShoreline === "number"
+            ? Promise.resolve(cachedShoreline)
+            : detectShorelineDirection(lat, lon).then((result) => {
+                shorelineCache.set(shoreKey, result ?? "failed", 30 * MS.DAY);
+                return result;
+              });
 
     const fetchTimeout = { signal: AbortSignal.timeout(10_000) };
 
@@ -485,6 +563,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
         };
       }>,
       windResp.json() as Promise<{
+        timezone?: string;
         hourly: {
           time: string[];
           wind_speed_10m: (number | null)[];
@@ -493,6 +572,8 @@ router.get("/forecast", async (req: Request, res: Response) => {
       }>,
     ]);
 
+    const forecastTimezone = windData.timezone ?? "UTC";
+
     const dates = [...new Set(windData.hourly.time.map((t) => t.slice(0, 10)))].slice(0, 7);
 
     const days = dates.map((date) => {
@@ -500,17 +581,37 @@ router.get("/forecast", async (req: Request, res: Response) => {
         const windIdx = findHourlyIndex(windData.hourly.time, date, sampleHour);
         const marineIdx = findHourlyIndex(marineData.hourly.time, date, sampleHour);
 
-        const windSpeed = pickHourlyValue(windData.hourly.wind_speed_10m, windIdx, 0);
-        const windDirection = pickHourlyValue(windData.hourly.wind_direction_10m, windIdx, 0);
+        const windSpeed = pickHourlyNumber(windData.hourly.wind_speed_10m, windIdx, 0);
+
+        const rawSwellHeight = pickHourlyNumberOrNull(
+          marineData.hourly.swell_wave_height,
+          marineIdx,
+        );
         const swellHeight =
-          pickHourlyValue(marineData.hourly.swell_wave_height, marineIdx, 0) ||
-          pickHourlyValue(marineData.hourly.wave_height, marineIdx, 0);
+          rawSwellHeight !== null
+            ? rawSwellHeight
+            : pickHourlyNumber(marineData.hourly.wave_height, marineIdx, 0);
+
+        const rawSwellPeriod = pickHourlyNumberOrNull(
+          marineData.hourly.swell_wave_period,
+          marineIdx,
+        );
         const swellPeriod =
-          pickHourlyValue(marineData.hourly.swell_wave_period, marineIdx, 6) ||
-          pickHourlyValue(marineData.hourly.wave_period, marineIdx, 6);
-        const swellDirection =
-          pickHourlyValue(marineData.hourly.swell_wave_direction, marineIdx, 0) ||
-          pickHourlyValue(marineData.hourly.wave_direction, marineIdx, 0);
+          rawSwellPeriod !== null
+            ? rawSwellPeriod
+            : pickHourlyNumber(marineData.hourly.wave_period, marineIdx, 6);
+
+        const rawSwellDirection =
+          pickHourlyNumberOrNull(marineData.hourly.swell_wave_direction, marineIdx) ??
+          pickHourlyNumberOrNull(marineData.hourly.wave_direction, marineIdx);
+        const rawWindDirection = pickHourlyNumberOrNull(
+          windData.hourly.wind_direction_10m,
+          windIdx,
+        );
+
+        // Open-Meteo omits direction when wind is calm — prefer swell direction over 0° north.
+        const swellDirection = rawSwellDirection ?? rawWindDirection ?? 0;
+        const windDirection = rawWindDirection ?? rawSwellDirection ?? 0;
 
         const {
           score,
@@ -553,7 +654,7 @@ router.get("/forecast", async (req: Request, res: Response) => {
 
       return {
         date,
-        dayLabel: getDayLabel(date),
+        dayLabel: getDayLabel(date, forecastTimezone),
         score: primary.score,
         windSpeed: primary.windSpeed,
         windDirection: primary.windDirection,
@@ -580,7 +681,21 @@ router.get("/forecast", async (req: Request, res: Response) => {
       days,
     });
 
-    forecastCache.set(forecastKey, forecast, 15 * MS.MINUTE);
+    const cachePayload: CachedForecastPayload = {
+      timezone: forecastTimezone,
+      locationName: forecast.locationName,
+      lat: forecast.lat,
+      lon: forecast.lon,
+      days: forecast.days,
+    };
+    const cacheTtl = 15 * MS.MINUTE;
+    forecastCache.set(indexKey, { timezone: forecastTimezone }, cacheTtl);
+    forecastCache.set(
+      buildForecastDataKey(latR, lonR, skill, directionKey, forecastTimezone),
+      cachePayload,
+      cacheTtl,
+    );
+
     res.set("Cache-Control", "public, max-age=900"); // 15 min
     res.json(forecast);
   } catch (err) {

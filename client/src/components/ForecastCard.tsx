@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "@/lib/motion";
 import { format, parseISO } from "date-fns";
 import { Wind, Waves, Compass } from "lucide-react";
 import { cn, getScoreColorClasses } from "@/lib/utils";

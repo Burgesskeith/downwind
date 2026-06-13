@@ -1,19 +1,17 @@
+import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MotionConfig } from "framer-motion";
 import { lazy, Suspense } from "react";
-import { isNativeApp } from "@/lib/platform";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { BottomNav } from "@/components/BottomNav";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { MotionProvider } from "@/lib/motion";
+import Home from "@/pages/Home";
 
-const Home             = lazy(() => import("@/pages/Home"));
-const About            = lazy(() => import("@/pages/About"));
-const Contact          = lazy(() => import("@/pages/Contact"));
-const Advertise      = lazy(() => import("@/pages/Advertise"));
+const About = lazy(() => import("@/pages/About"));
+const Contact = lazy(() => import("@/pages/Contact"));
+const Advertise = lazy(() => import("@/pages/Advertise"));
 const AdvertiseSuccess = lazy(() => import("@/pages/AdvertiseSuccess"));
-const NotFound       = lazy(() => import("@/pages/not-found"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,19 +23,56 @@ const queryClient = new QueryClient({
   },
 });
 
+function prefetchSecondaryRoutes() {
+  void import("@/pages/About");
+  void import("@/pages/Contact");
+}
+
+function scheduleIdleWork(work: () => void): () => void {
+  if (typeof window.requestIdleCallback === "function") {
+    const id = window.requestIdleCallback(work);
+    return () => window.cancelIdleCallback(id);
+  }
+
+  const timer = window.setTimeout(work, 2_000);
+  return () => window.clearTimeout(timer);
+}
+
 function Router() {
+  useEffect(() => {
+    return scheduleIdleWork(prefetchSecondaryRoutes);
+  }, []);
+
   return (
     <>
-      <Suspense fallback={null}>
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/about" component={About} />
-          <Route path="/contact" component={Contact} />
-          <Route path="/advertise" component={Advertise} />
-          <Route path="/advertise/success" component={AdvertiseSuccess} />
-          <Route component={NotFound} />
-        </Switch>
-      </Suspense>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/about">
+          <Suspense fallback={null}>
+            <About />
+          </Suspense>
+        </Route>
+        <Route path="/contact">
+          <Suspense fallback={null}>
+            <Contact />
+          </Suspense>
+        </Route>
+        <Route path="/advertise">
+          <Suspense fallback={null}>
+            <Advertise />
+          </Suspense>
+        </Route>
+        <Route path="/advertise/success">
+          <Suspense fallback={null}>
+            <AdvertiseSuccess />
+          </Suspense>
+        </Route>
+        <Route>
+          <Suspense fallback={null}>
+            <NotFound />
+          </Suspense>
+        </Route>
+      </Switch>
       <BottomNav />
     </>
   );
@@ -47,15 +82,11 @@ function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <MotionConfig reducedMotion={isNativeApp ? "always" : "user"}>
-          <TooltipProvider>
-            {/* BASE_URL ("./") is for asset paths only — using it as router base breaks Capacitor route matching */}
-            <WouterRouter>
-              <Router />
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
-        </MotionConfig>
+        <MotionProvider>
+          <WouterRouter>
+            <Router />
+          </WouterRouter>
+        </MotionProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

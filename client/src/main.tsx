@@ -3,6 +3,6 @@ import App from "./App";
 import { configureNativeApi } from "@/lib/native";
 import "./index.css";
 
-configureNativeApi();
+void configureNativeApi();
 
 createRoot(document.getElementById("root")!).render(<App />);
