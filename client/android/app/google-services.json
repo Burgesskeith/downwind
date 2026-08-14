@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "6232618545",
+    "project_id": "wuther-91e44",
+    "storage_bucket": "wuther-91e44.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:6232618545:android:0e58693b9ed4c6dbe90710",
+        "android_client_info": {
+          "package_name": "com.downwind.paddling"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgU0q33894bHg4hs0ocoVi7r1iHsU-ZAc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

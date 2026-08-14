@@ -17,6 +17,12 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(import.meta.dirname, "src"),
         "@assets": path.resolve(import.meta.dirname, "..", "attached_assets"),
+        // Native-only analytics: stub the optional Firebase JS peer so Vite can
+        // bundle @capacitor-firebase/analytics without the full firebase package.
+        "firebase/analytics": path.resolve(
+          import.meta.dirname,
+          "src/lib/stubs/firebase-analytics.js",
+        ),
       },
       dedupe: ["react", "react-dom"],
     },

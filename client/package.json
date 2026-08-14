@@ -76,12 +76,13 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "@tanstack/react-query": "catalog:",
+    "@capacitor-firebase/analytics": "file:vendor/capacitor-firebase-analytics-8.3.0.tgz",
     "@capacitor/android": "^8.4.0",
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
     "@capacitor/preferences": "^8.0.1",
-    "@emailjs/browser": "^4.4.1"
+    "@emailjs/browser": "^4.4.1",
+    "@tanstack/react-query": "catalog:"
   }
 }

@@ -47,4 +47,8 @@ Thumbs.db
 # Local uploads and env
 server/uploads/
 .env
-.env.local
+.env.*
+!.env.example
+
+# Capacitor SPM local symlinks (absolute paths into this machine's node_modules)
+client/ios/App/CapApp-SPM/symlinks/

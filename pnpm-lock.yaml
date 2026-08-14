@@ -77,6 +77,9 @@ importers:
 
   client:
     dependencies:
+      '@capacitor-firebase/analytics':
+        specifier: file:vendor/capacitor-firebase-analytics-8.3.0.tgz
+        version: file:client/vendor/capacitor-firebase-analytics-8.3.0.tgz(@capacitor/core@8.4.0)
       '@capacitor/android':
         specifier: ^8.4.0
         version: 8.4.0(@capacitor/core@8.4.0)
@@ -448,6 +451,16 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@capacitor-firebase/analytics@file:client/vendor/capacitor-firebase-analytics-8.3.0.tgz':
+    resolution: {integrity: sha512-xgbhd79q/1dpWzQlGQZqv7wiEv6FQnkhQixE+YoAix5PiHQBnTjBql51tnprHUmEoqYCyS/U3NtllQMCQFDuNA==, tarball: file:client/vendor/capacitor-firebase-analytics-8.3.0.tgz}
+    version: 8.3.0
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+      firebase: ^12.6.0
+    peerDependenciesMeta:
+      firebase:
+        optional: true
 
   '@capacitor/android@8.4.0':
     resolution: {integrity: sha512-K1ZPkQzvRzPEALz9nBdLx5p5nAPzp5fsTYWk7LRiKZeH/NXqjDvqfTv7lrLgrziQNoDeaL6ijg64oBREzXiV+g==}
@@ -3819,6 +3832,10 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@capacitor-firebase/analytics@file:client/vendor/capacitor-firebase-analytics-8.3.0.tgz(@capacitor/core@8.4.0)':
+    dependencies:
+      '@capacitor/core': 8.4.0
 
   '@capacitor/android@8.4.0(@capacitor/core@8.4.0)':
     dependencies:

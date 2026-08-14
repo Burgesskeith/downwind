@@ -7,7 +7,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        #if DEBUG
+        // Enable Analytics DebugView for simulator/device debug builds.
+        UserDefaults.standard.set(true, forKey: "/google/firebase/debug_mode")
+        UserDefaults.standard.set(true, forKey: "/google/measurement/debug_mode")
+        #endif
+
+        FirebaseBootstrap.configureIfNeeded()
         return true
     }
 
@@ -22,7 +28,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
-        // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
+        // Called as the transition from the background to the active state; here you can undo many of the changes made on entering the background.
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {

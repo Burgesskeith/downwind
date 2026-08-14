@@ -7,6 +7,18 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: "https",
   },
+  // Avoid SwiftPM package identity collision for @capacitor-firebase/analytics.
+  experimental: {
+    ios: {
+      spm: {
+        packageOptions: {
+          "@capacitor-firebase/analytics": {
+            symlink: true,
+          },
+        },
+      },
+    },
+  },
 };
 
 export default config;

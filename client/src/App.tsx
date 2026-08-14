@@ -1,10 +1,11 @@
 import { useEffect } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { MotionProvider } from "@/lib/motion";
+import { logScreenView } from "@/lib/analytics";
 import Home from "@/pages/Home";
 
 const About = lazy(() => import("@/pages/About"));
@@ -38,6 +39,25 @@ function scheduleIdleWork(work: () => void): () => void {
   return () => window.clearTimeout(timer);
 }
 
+function screenNameForPath(path: string): string {
+  if (path === "/" || path === "") return "Home";
+  const trimmed = path.replace(/^\//, "");
+  return trimmed
+    .split("/")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join("_");
+}
+
+function AnalyticsScreenTracker() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    void logScreenView(screenNameForPath(location));
+  }, [location]);
+
+  return null;
+}
+
 function Router() {
   useEffect(() => {
     return scheduleIdleWork(prefetchSecondaryRoutes);
@@ -45,6 +65,7 @@ function Router() {
 
   return (
     <>
+      <AnalyticsScreenTracker />
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/about">

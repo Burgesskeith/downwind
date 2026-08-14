@@ -23,6 +23,7 @@ import { isNativePlatform } from "@/lib/capacitor";
 import { enrichGeocodeLocation } from "@/lib/geocode";
 import { formatLocationRegion, normalizeLocationName } from "@/lib/utils";
 import { getPreferenceSync } from "@/lib/preferences";
+import { logAppEvent } from "@/lib/analytics";
 
 // Busts React Query cache when forecast shape changes (e.g. daily → hourly timeSlots).
 const FORECAST_QUERY_VERSION = "v2-hourly";
@@ -88,6 +89,8 @@ export default function Home() {
   );
   const [prefsLoaded, setPrefsLoaded] = useState(() => !isNativePlatform());
   const locationSelectionRef = useRef(0);
+  // Dedupes forecast_viewed when React Query returns the same result again.
+  const lastForecastViewKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,15 +156,36 @@ export default function Home() {
     void setPreference(PREFERENCE_KEYS.timeSlot, timeSlot);
   }, [timeSlot, prefsLoaded]);
 
-  const handleLocationSelect = useCallback((location: GeocodeLocation) => {
-    const selectionId = ++locationSelectionRef.current;
-    void (async () => {
-      const enriched = await enrichGeocodeLocation(location);
-      if (selectionId !== locationSelectionRef.current) return;
-      setSelectedLocation(enriched);
-      void setPreference(PREFERENCE_KEYS.location, JSON.stringify(enriched));
-    })();
-  }, []);
+  const handleLocationSelect = useCallback(
+    (location: GeocodeLocation) => {
+      const selectionId = ++locationSelectionRef.current;
+      void (async () => {
+        const enriched = await enrichGeocodeLocation(location);
+        if (selectionId !== locationSelectionRef.current) return;
+        setSelectedLocation(enriched);
+        void setPreference(PREFERENCE_KEYS.location, JSON.stringify(enriched));
+        // Log only user picks — restored prefs skip this handler.
+        void logAppEvent("conditions_search", {
+          location_name: enriched.name,
+          skill_level: skill,
+          country: enriched.country,
+          admin1: enriched.admin1,
+        });
+      })();
+    },
+    [skill],
+  );
+
+  const handleSkillChange = useCallback(
+    (nextSkill: SkillLevel) => {
+      setSkill(nextSkill);
+      void logAppEvent("skill_selected", {
+        skill_level: nextSkill,
+        location_name: selectedLocation?.name,
+      });
+    },
+    [selectedLocation?.name],
+  );
 
   const forecastParams = useMemo(
     () =>
@@ -176,7 +200,7 @@ export default function Home() {
     [selectedLocation, skill],
   );
 
-  const { data: forecast, isLoading, isFetching, isError, error } = useGetWeatherForecast(
+  const { data: forecast, isLoading, isFetching, isError, isSuccess, error } = useGetWeatherForecast(
     forecastParams ?? { lat: 0, lon: 0, skill },
     {
       query: {
@@ -190,6 +214,21 @@ export default function Home() {
       },
     },
   );
+
+  useEffect(() => {
+    if (!isSuccess || !forecast || !selectedLocation || isError || isFetching) return;
+
+    const viewKey = `${selectedLocation.name}|${skill}|${forecast.days[0]?.date ?? ""}`;
+    if (lastForecastViewKeyRef.current === viewKey) return;
+    lastForecastViewKeyRef.current = viewKey;
+
+    void logAppEvent("forecast_viewed", {
+      location_name: selectedLocation.name,
+      skill_level: skill,
+      country: selectedLocation.country,
+      admin1: selectedLocation.admin1,
+    });
+  }, [forecast, isError, isFetching, isSuccess, selectedLocation, skill]);
 
   const isFirstForecastLoad = Boolean(selectedLocation && isLoading && !forecast);
   const isUpdatingForecast = Boolean(selectedLocation && isFetching && forecast);
@@ -233,7 +272,7 @@ export default function Home() {
               selectedName={selectedLocation?.name}
             />
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <SkillSelector value={skill} onChange={setSkill} />
+              <SkillSelector value={skill} onChange={handleSkillChange} />
               <TimeOfDaySelector value={timeSlot} onChange={setTimeSlot} />
             </div>
           </div>
