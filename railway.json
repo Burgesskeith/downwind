@@ -1,14 +1,14 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "RAILPACK",
-    "buildCommand": "pnpm --filter @workspace/server run build",
+    "builder": "DOCKERFILE",
     "watchPatterns": [
       "server/**",
       "lib/api-zod/**",
       "package.json",
       "pnpm-lock.yaml",
       "pnpm-workspace.yaml",
+      "Dockerfile",
       "railway.json"
     ]
   },
