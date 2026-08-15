@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "pnpm --filter @workspace/server run build",
+    "watchPatterns": [
+      "server/**",
+      "lib/api-zod/**",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "railway.json"
+    ]
+  },
+  "deploy": {
+    "startCommand": "node server/dist/index.cjs",
+    "healthcheckPath": "/api/healthz",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
