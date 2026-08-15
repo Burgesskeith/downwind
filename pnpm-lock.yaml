@@ -453,7 +453,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@capacitor-firebase/analytics@file:client/vendor/capacitor-firebase-analytics-8.3.0.tgz':
-    resolution: {integrity: sha512-xgbhd79q/1dpWzQlGQZqv7wiEv6FQnkhQixE+YoAix5PiHQBnTjBql51tnprHUmEoqYCyS/U3NtllQMCQFDuNA==, tarball: file:client/vendor/capacitor-firebase-analytics-8.3.0.tgz}
+    resolution: {integrity: sha512-V4FftKOM7nklrtEkR0wdC/ie2fLypJGgEA/81cW9EtBF+AenHIH/zf/nHmkKMuDmTQngNLVIPhRWWCb2v0drKQ==, tarball: file:client/vendor/capacitor-firebase-analytics-8.3.0.tgz}
     version: 8.3.0
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
@@ -2006,6 +2006,7 @@ packages:
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -3496,6 +3497,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0

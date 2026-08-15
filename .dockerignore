@@ -4,9 +4,7 @@
 node_modules
 **/node_modules
 **/dist
-client/ios
-client/android
-client/dist
+client
 server/dist
 attached_assets
 **/.DS_Store

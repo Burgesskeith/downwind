@@ -5,8 +5,15 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@10 --activate
 
-COPY . .
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.json ./
+COPY server ./server
+COPY lib/api-zod ./lib/api-zod
+
+# The Capacitor app is not part of this image. Drop it from the workspace so
+# pnpm never installs client/vendor/*.tgz during the API build.
+RUN sed -i '/^  - client$/d' pnpm-workspace.yaml
+
+RUN pnpm install --frozen-lockfile --filter @workspace/server...
 RUN pnpm --filter @workspace/server run build
 
 FROM node:22-bookworm-slim
